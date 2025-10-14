@@ -19,6 +19,10 @@ const options = {
     },
     servers: [
       {
+        url: 'https://lms-backend-u90k.onrender.com/api',
+        description: 'Production server (Render)'
+      },
+      {
         url: process.env.API_URL || 'http://localhost:5000/api',
         description: 'Development server'
       }
