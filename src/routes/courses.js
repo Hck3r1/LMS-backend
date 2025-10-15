@@ -8,6 +8,49 @@ const Notification = require('../models/Notification');
 const { emitToUser } = require('../utils/socket');
 
 const router = express.Router();
+/**
+ * @swagger
+ * /courses/instructor/{id}:
+ *   get:
+ *     summary: List all courses for an instructor (includes drafts)
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/instructor/:id', protect, async (req, res) => {
+  try {
+    const instructorId = req.params.id;
+    const isOwner = req.user._id.toString() === instructorId || req.user.role === 'admin';
+    const filter = isOwner ? { instructor: instructorId } : { instructor: instructorId, isPublished: true };
+    const courses = await Course.find(filter).sort({ createdAt: -1 });
+    res.json({ success: true, data: { courses } });
+  } catch (e) {
+    console.error('List instructor courses error:', e);
+    res.status(500).json({ success: false, message: 'Server error fetching instructor courses' });
+  }
+});
+
+/**
+ * @swagger
+ * /courses/{id}/students:
+ *   get:
+ *     summary: List enrolled students for a course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/:id/students', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id).populate('enrolledStudents.student', 'firstName lastName email avatar');
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+    const isOwner = course.instructor.toString() === req.user._id.toString() || req.user.role === 'admin';
+    if (!isOwner) return res.status(403).json({ success: false, message: 'Not authorized to view enrolled students' });
+    res.json({ success: true, data: { students: course.enrolledStudents } });
+  } catch (e) {
+    console.error('List course students error:', e);
+    res.status(500).json({ success: false, message: 'Server error fetching enrolled students' });
+  }
+});
 
 /**
  * @swagger
