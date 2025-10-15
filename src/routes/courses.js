@@ -271,7 +271,7 @@ router.post('/', [
   protect,
   authorize('tutor', 'admin'),
   body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Title must be between 5 and 100 characters'),
-  body('description').trim().isLength({ min: 20, max: 1000 }).withMessage('Description must be between 20 and 1000 characters'),
+  body('description').trim().isLength({ min: 10, max: 1000 }).withMessage('Description must be between 10 and 1000 characters'),
   body('category').isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   body('difficulty').isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   body('duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 hour'),
@@ -289,6 +289,13 @@ router.post('/', [
       });
     }
 
+    // Coerce learningObjectives to array if provided as a string
+    if (typeof req.body.learningObjectives === 'string') {
+      req.body.learningObjectives = req.body.learningObjectives
+        .split(/[\n,]/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
     const courseData = {
       ...req.body,
       instructor: req.user._id
@@ -361,6 +368,7 @@ router.post('/', [
  *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
  *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
  *               duration: { type: integer, minimum: 1 }
+ *               // price removed for free LMS
  *     responses:
  *       200:
  *         description: Course updated
@@ -375,7 +383,7 @@ router.put('/:id', [
   protect,
   authorize('tutor', 'admin'),
   body('title').optional().trim().isLength({ min: 5, max: 100 }).withMessage('Title must be between 5 and 100 characters'),
-  body('description').optional().trim().isLength({ min: 20, max: 1000 }).withMessage('Description must be between 20 and 1000 characters'),
+  body('description').optional().trim().isLength({ min: 10, max: 1000 }).withMessage('Description must be between 10 and 1000 characters'),
   body('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   body('difficulty').optional().isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   body('duration').optional().isInt({ min: 1 }).withMessage('Duration must be at least 1 hour'),
