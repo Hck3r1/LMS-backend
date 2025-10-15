@@ -77,8 +77,11 @@ router.post('/register', [
   body('lastName').trim().isLength({ min: 2 }).withMessage('Last name must be at least 2 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('role').optional().isIn(['student', 'tutor']).withMessage('Role must be student or tutor'),
-  body('specialization').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid specialization')
+  body('role').optional({ checkFalsy: true }).isIn(['student', 'tutor']).withMessage('Role must be student or tutor'),
+  body('specialization')
+    .optional({ checkFalsy: true })
+    .isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design'])
+    .withMessage('Invalid specialization')
 ], authController.register);
 
 /**
