@@ -29,7 +29,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration with support for localhost and tunnels (ngrok/grok)
+// CORS configuration with support for localhost, tunnels (ngrok/grok), and Render
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:3000',
@@ -37,7 +37,8 @@ const allowedOrigins = [
   'http://localhost:3002',
   'https://localhost:3000',
   'https://localhost:3001',
-  'https://localhost:3002'
+  'https://localhost:3002',
+  'https://lms-backend-u90k.onrender.com'
 ].filter(Boolean);
 
 app.use(cors({
@@ -48,8 +49,9 @@ app.use(cors({
     const isAllowedList = allowedOrigins.includes(origin);
     const isNgrok = /\.ngrok-free\.app$/i.test(origin) || /\.ngrok\.io$/i.test(origin);
     const isGrok = /\.grok$/i.test(origin) || /\.trycloudflare\.com$/i.test(origin);
+    const isRender = /\.onrender\.com$/i.test(origin);
 
-    if (isAllowedList || isNgrok || isGrok) {
+    if (isAllowedList || isNgrok || isGrok || isRender) {
       return callback(null, true);
     }
     return callback(new Error(`CORS blocked for origin: ${origin}`));
