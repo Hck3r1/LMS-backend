@@ -180,9 +180,25 @@ router.get('/', [
   }
 });
 
-// @desc    Get single course
-// @route   GET /api/courses/:id
-// @access  Public
+/**
+ * @swagger
+ * /courses/{id}:
+ *   get:
+ *     summary: Get a single course by ID
+ *     tags: [Courses]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID
+ *     responses:
+ *       200:
+ *         description: Course retrieved
+ *       404:
+ *         description: Course not found
+ */
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id)
@@ -223,9 +239,38 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// @desc    Create new course
-// @route   POST /api/courses
-// @access  Private (Tutor only)
+/**
+ * @swagger
+ * /courses:
+ *   post:
+ *     summary: Create a new course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, description, category, difficulty, duration, price]
+ *             properties:
+ *               title: { type: string }
+ *               description: { type: string }
+ *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
+ *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
+ *               duration: { type: integer, minimum: 1 }
+ *               price: { type: number, minimum: 0 }
+ *               learningObjectives: { type: array, items: { type: string } }
+ *               tags: { type: array, items: { type: string } }
+ *     responses:
+ *       201:
+ *         description: Course created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/', [
   protect,
   authorize('tutor', 'admin'),
@@ -274,9 +319,43 @@ router.post('/', [
   }
 });
 
-// @desc    Update course
-// @route   PUT /api/courses/:id
-// @access  Private (Course instructor or admin)
+/**
+ * @swagger
+ * /courses/{id}:
+ *   put:
+ *     summary: Update a course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: string }
+ *               description: { type: string }
+ *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
+ *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
+ *               duration: { type: integer, minimum: 1 }
+ *               price: { type: number, minimum: 0 }
+ *     responses:
+ *       200:
+ *         description: Course updated
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Course not found
+ */
 router.put('/:id', [
   protect,
   authorize('tutor', 'admin'),
@@ -334,9 +413,38 @@ router.put('/:id', [
   }
 });
 
-// @desc    Upload course thumbnail
-// @route   POST /api/courses/:id/thumbnail
-// @access  Private (Course instructor or admin)
+/**
+ * @swagger
+ * /courses/{id}/thumbnail:
+ *   post:
+ *     summary: Upload course thumbnail image
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               thumbnail:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Thumbnail uploaded
+ *       400:
+ *         description: No file uploaded
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/:id/thumbnail', protect, uploadThumbnail, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
@@ -382,9 +490,38 @@ router.post('/:id/thumbnail', protect, uploadThumbnail, async (req, res) => {
   }
 });
 
-// @desc    Upload course banner
-// @route   POST /api/courses/:id/banner
-// @access  Private (Course instructor or admin)
+/**
+ * @swagger
+ * /courses/{id}/banner:
+ *   post:
+ *     summary: Upload course banner image
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               banner:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Banner uploaded
+ *       400:
+ *         description: No file uploaded
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/:id/banner', protect, uploadBanner, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
@@ -583,9 +720,30 @@ router.get('/:id/analytics', protect, async (req, res) => {
   }
 });
 
-// @desc    Delete course
-// @route   DELETE /api/courses/:id
-// @access  Private (Course instructor or admin)
+/**
+ * @swagger
+ * /courses/{id}:
+ *   delete:
+ *     summary: Delete a course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Course deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Course not found
+ */
 router.delete('/:id', protect, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
