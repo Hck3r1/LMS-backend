@@ -94,7 +94,7 @@ router.get('/', [
   query('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   query('difficulty').optional().isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   query('search').optional().isLength({ min: 1 }).withMessage('Search term cannot be empty'),
-  query('sort').optional().isIn(['newest', 'oldest', 'rating', 'popular', 'price-low', 'price-high']).withMessage('Invalid sort option')
+  query('sort').optional().isIn(['newest', 'oldest', 'rating', 'popular']).withMessage('Invalid sort option')
 ], optionalAuth, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -139,12 +139,6 @@ router.get('/', [
         break;
       case 'popular':
         sort = { 'enrolledStudents': -1 };
-        break;
-      case 'price-low':
-        sort = { price: 1 };
-        break;
-      case 'price-high':
-        sort = { price: -1 };
         break;
       default:
         sort = { createdAt: -1 };
@@ -279,7 +273,7 @@ router.post('/', [
   body('category').isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   body('difficulty').isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   body('duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 hour'),
-  body('price').isFloat({ min: 0 }).withMessage('Price cannot be negative'),
+  // price removed for free LMS
   body('learningObjectives').optional().isArray().withMessage('Learning objectives must be an array'),
   body('tags').optional().isArray().withMessage('Tags must be an array')
 ], async (req, res) => {
@@ -345,7 +339,7 @@ router.post('/', [
  *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
  *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
  *               duration: { type: integer, minimum: 1 }
- *               price: { type: number, minimum: 0 }
+ *               // price removed for free LMS
  *     responses:
  *       200:
  *         description: Course updated
@@ -364,7 +358,7 @@ router.put('/:id', [
   body('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   body('difficulty').optional().isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   body('duration').optional().isInt({ min: 1 }).withMessage('Duration must be at least 1 hour'),
-  body('price').optional().isFloat({ min: 0 }).withMessage('Price cannot be negative')
+  // price removed for free LMS
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

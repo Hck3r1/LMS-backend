@@ -1,5 +1,7 @@
 const express = require('express');
 const User = require('../models/User');
+const Course = require('../models/Course');
+const Submission = require('../models/Submission');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -89,6 +91,72 @@ router.get('/stats', protect, authorize('admin'), async (req, res) => {
       success: false,
       message: 'Server error fetching user statistics'
     });
+  }
+});
+
+/**
+ * @swagger
+ * /users/tutors/{id}/specialization-stats:
+ *   get:
+ *     summary: Get tutor specialization-based stats
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Tutor user ID
+ *     responses:
+ *       200:
+ *         description: Stats computed
+ */
+router.get('/tutors/:id/specialization-stats', protect, authorize('tutor', 'admin'), async (req, res) => {
+  try {
+    const tutor = await User.findById(req.params.id);
+    if (!tutor || tutor.role !== 'tutor') {
+      return res.status(404).json({ success: false, message: 'Tutor not found' });
+    }
+
+    const specialization = tutor.specialization;
+
+    // Total Courses created by tutors of this specialization
+    const totalCourses = await Course.countDocuments({ category: specialization, isPublished: true });
+
+    // Total Students enrolled in courses of this specialization
+    const aggStudents = await Course.aggregate([
+      { $match: { category: specialization, isPublished: true } },
+      { $project: { enrolledCount: { $size: { $ifNull: ['$enrolledStudents', []] } } } },
+      { $group: { _id: null, total: { $sum: '$enrolledCount' } } }
+    ]);
+    const totalStudents = aggStudents[0]?.total || 0;
+
+    // Pending Grades for assignments submitted to courses in this specialization
+    const courseIds = await Course.find({ category: specialization }).distinct('_id');
+    const pendingGrades = await Submission.countDocuments({ courseId: { $in: courseIds }, status: { $in: ['submitted', 'under_review'] } });
+
+    // Average Rating across courses in this specialization
+    const ratingAgg = await Course.aggregate([
+      { $match: { category: specialization, 'rating.count': { $gt: 0 } } },
+      { $group: { _id: null, avg: { $avg: '$rating.average' } } }
+    ]);
+    const averageRating = Math.round((ratingAgg[0]?.avg || 0) * 10) / 10;
+
+    res.json({
+      success: true,
+      data: {
+        specialization,
+        totalCourses,
+        totalStudents,
+        pendingGrades,
+        averageRating
+      }
+    });
+  } catch (error) {
+    console.error('Specialization stats error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching stats' });
   }
 });
 

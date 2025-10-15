@@ -46,12 +46,7 @@ const courseSchema = new mongoose.Schema({
     required: [true, 'Course difficulty is required'],
     default: 'beginner'
   },
-  price: {
-    type: Number,
-    required: [true, 'Course price is required'],
-    min: [0, 'Price cannot be negative'],
-    default: 0
-  },
+  // Removed pricing for free LMS
   isPublished: {
     type: Boolean,
     default: false
