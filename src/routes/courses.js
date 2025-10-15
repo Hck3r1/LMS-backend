@@ -361,7 +361,6 @@ router.post('/', [
  *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
  *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
  *               duration: { type: integer, minimum: 1 }
- *               // price removed for free LMS
  *     responses:
  *       200:
  *         description: Course updated
