@@ -93,7 +93,7 @@ router.get('/:id/students', protect, async (req, res) => {
  *         name: sort
  *         schema:
  *           type: string
- *           enum: [newest, oldest, rating, popular, price-low, price-high]
+ *           enum: [newest, oldest, rating, popular]
  *         description: Sort order for courses
  *     responses:
  *       200:
@@ -304,14 +304,13 @@ router.get('/:id', optionalAuth, async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [title, description, category, difficulty, duration, price]
+ *             required: [title, description, category, difficulty, duration]
  *             properties:
  *               title: { type: string }
  *               description: { type: string }
  *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
  *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
  *               duration: { type: integer, minimum: 1 }
- *               price: { type: number, minimum: 0 }
  *               learningObjectives: { type: array, items: { type: string } }
  *               tags: { type: array, items: { type: string } }
  *     responses:
@@ -444,7 +443,7 @@ router.post('/', [
  *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
  *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
  *               duration: { type: integer, minimum: 1 }
- *               // price removed for free LMS
+ *               # price removed for free LMS
  *     responses:
  *       200:
  *         description: Course updated
