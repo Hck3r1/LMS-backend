@@ -346,10 +346,11 @@ router.post('/', [
     }
   } catch (error) {
     console.error('Create course error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating course'
-    });
+    if (error.name === 'ValidationError') {
+      const errors = Object.keys(error.errors).map((k) => ({ path: k, msg: error.errors[k].message }));
+      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+    }
+    res.status(500).json({ success: false, message: 'Server error creating course' });
   }
 });
 
