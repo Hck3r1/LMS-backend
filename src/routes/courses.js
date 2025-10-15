@@ -709,6 +709,27 @@ router.post('/:id/enroll', [
       $push: { enrolledCourses: course._id }
     });
 
+    // Notify course instructor
+    try {
+      const notif = await Notification.create({
+        userId: course.instructor,
+        actorId: req.user._id,
+        type: 'enrollment',
+        title: 'New enrollment',
+        body: `${req.user.firstName || 'A student'} enrolled in ${course.title}`,
+        link: `/tutor/courses/${course._id}`,
+        courseId: course._id
+      });
+      emitToUser(course.instructor.toString(), 'notification:new', {
+        title: notif.title,
+        body: notif.body,
+        link: notif.link,
+        courseId: course._id
+      });
+    } catch (e) {
+      console.error('Notify instructor enrollment error:', e);
+    }
+
     res.json({
       success: true,
       message: 'Successfully enrolled in course',
