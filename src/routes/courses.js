@@ -4,6 +4,8 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const { protect, authorize, optionalAuth, checkEnrollment } = require('../middleware/auth');
 const { uploadThumbnail, uploadBanner } = require('../middleware/upload');
+const Notification = require('../models/Notification');
+const { emitToUser } = require('../utils/socket');
 
 const router = express.Router();
 
@@ -304,6 +306,26 @@ router.post('/', [
       message: 'Course created successfully',
       data: { course }
     });
+
+    // Announce new course to students of this specialization (optional scope)
+    const interestedStudents = await User.find({ role: 'student', specialization: course.category }).select('_id');
+    if (interestedStudents.length) {
+      const notifications = interestedStudents.map(s => ({
+        userId: s._id,
+        actorId: req.user._id,
+        type: 'announcement',
+        title: 'New course published',
+        body: `${course.title} is now available.`,
+        link: `/courses/${course._id}`,
+        courseId: course._id
+      }));
+      await Notification.insertMany(notifications);
+      interestedStudents.forEach(s => emitToUser(s._id.toString(), 'notification:new', {
+        title: 'New course published',
+        body: `${course.title} is now available.`,
+        courseId: course._id
+      }));
+    }
   } catch (error) {
     console.error('Create course error:', error);
     res.status(500).json({

@@ -6,6 +6,7 @@ const Course = require('../models/Course');
 const { protect, authorize } = require('../middleware/auth');
 const { uploadAssignmentFiles } = require('../middleware/upload');
 const Notification = require('../models/Notification');
+const { emitToUser } = require('../utils/socket');
 
 const router = express.Router();
 
@@ -292,6 +293,12 @@ router.put('/:id/grade', [
       moduleId: sub.moduleId,
       assignmentId: sub.assignmentId
     });
+  emitToUser(sub.studentId.toString(), 'notification:new', {
+    title: 'Assignment graded',
+    body: 'Your submission has been graded.',
+    assignmentId: sub.assignmentId,
+    courseId: sub.courseId
+  });
 
     res.json({
       success: true,

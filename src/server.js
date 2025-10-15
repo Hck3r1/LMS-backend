@@ -119,8 +119,15 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const http = require('http');
+const server = http.createServer(app);
+const { initSocket } = require('./utils/socket');
+const { startDueSoonReminderScheduler } = require('./utils/reminders');
+initSocket(server);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
         console.log(`🚀 MIC Oyo State LMS Server running on port ${PORT}`);
         console.log(`📚 MIC Oyo State LMS Backend API ready at http://localhost:${PORT}`);
+        // Start schedulers
+        startDueSoonReminderScheduler();
 });

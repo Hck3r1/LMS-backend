@@ -5,6 +5,7 @@ const Course = require('../models/Course');
 const { protect, authorize, checkEnrollment } = require('../middleware/auth');
 const { uploadAssignmentFiles } = require('../middleware/upload');
 const Notification = require('../models/Notification');
+const { emitToUser } = require('../utils/socket');
 
 const router = express.Router();
 
@@ -164,6 +165,14 @@ router.post('/', [
       assignmentId: assignment._id
     }));
     if (notifications.length) await Notification.insertMany(notifications);
+    // Emit to users in real-time
+    (course.enrolledStudents || []).forEach(e => emitToUser(e.student.toString(), 'notification:new', {
+      title: 'New assignment',
+      body: `${title} has been posted in ${course.title}.`,
+      courseId: course._id,
+      moduleId,
+      assignmentId: assignment._id
+    }));
 
     res.status(201).json({
       success: true,

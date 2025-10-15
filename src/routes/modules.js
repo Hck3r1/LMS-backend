@@ -4,6 +4,8 @@ const Module = require('../models/Module');
 const Course = require('../models/Course');
 const { protect, authorize, checkEnrollment } = require('../middleware/auth');
 const { uploadModuleContent } = require('../middleware/upload');
+const Notification = require('../models/Notification');
+const { emitToUser } = require('../utils/socket');
 
 const router = express.Router();
 
@@ -123,6 +125,28 @@ router.post('/', [
     // Add module to course
     course.modules.push(module._id);
     await course.save();
+
+    // Notify enrolled students of new module (if published later, update route will also handle)
+    const enrolled = course.enrolledStudents || [];
+    if (enrolled.length) {
+      const notifications = enrolled.map(e => ({
+        userId: e.student,
+        actorId: req.user._id,
+        type: 'module',
+        title: 'New module added',
+        body: `${title} was added to ${course.title}.`,
+        link: `/courses/${course._id}`,
+        courseId: course._id,
+        moduleId: module._id
+      }));
+      await Notification.insertMany(notifications);
+      enrolled.forEach(e => emitToUser(e.student.toString(), 'notification:new', {
+        title: 'New module added',
+        body: `${title} was added to ${course.title}.`,
+        courseId: course._id,
+        moduleId: module._id
+      }));
+    }
 
     res.status(201).json({
       success: true,
@@ -313,6 +337,7 @@ router.put('/:id', [
       });
     }
 
+    const wasPublished = module.isPublished;
     const updatedModule = await Module.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -324,6 +349,31 @@ router.put('/:id', [
       message: 'Module updated successfully',
       data: { module: updatedModule }
     });
+
+    // If module moved to published, notify enrolled students
+    if (!wasPublished && updatedModule.isPublished) {
+      const course = await Course.findById(updatedModule.courseId);
+      const enrolled = course.enrolledStudents || [];
+      if (enrolled.length) {
+        const notifications = enrolled.map(e => ({
+          userId: e.student,
+          actorId: req.user._id,
+          type: 'module',
+          title: 'Module published',
+          body: `${updatedModule.title} is now available in ${course.title}.`,
+          link: `/courses/${course._id}`,
+          courseId: course._id,
+          moduleId: updatedModule._id
+        }));
+        await Notification.insertMany(notifications);
+        enrolled.forEach(e => emitToUser(e.student.toString(), 'notification:new', {
+          title: 'Module published',
+          body: `${updatedModule.title} is now available in ${course.title}.`,
+          courseId: course._id,
+          moduleId: updatedModule._id
+        }));
+      }
+    }
   } catch (error) {
     console.error('Update module error:', error);
     res.status(500).json({
