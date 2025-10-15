@@ -296,6 +296,15 @@ router.post('/', [
         .map(s => s.trim())
         .filter(Boolean);
     }
+    // Normalize prerequisites: expect array of ObjectIds; if string or invalid, drop
+    if (typeof req.body.prerequisites === 'string') {
+      // free text not supported for ObjectId field; ignore
+      delete req.body.prerequisites;
+    } else if (Array.isArray(req.body.prerequisites)) {
+      const isObjectId = (v) => typeof v === 'string' && /^[a-f\d]{24}$/i.test(v);
+      const filtered = req.body.prerequisites.filter(isObjectId);
+      req.body.prerequisites = filtered;
+    }
     // Validate learning objectives content length (10-100 chars each)
     if (Array.isArray(req.body.learningObjectives)) {
       const invalid = req.body.learningObjectives.find(obj => obj.length < 10 || obj.length > 100);
