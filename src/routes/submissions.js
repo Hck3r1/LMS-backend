@@ -5,6 +5,7 @@ const Assignment = require('../models/Assignment');
 const Course = require('../models/Course');
 const { protect, authorize } = require('../middleware/auth');
 const { uploadAssignmentFiles } = require('../middleware/upload');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -277,6 +278,20 @@ router.put('/:id/grade', [
 
     // Update grade and feedback
     await submission.updateGrade(grade, feedback);
+
+    // Add notification after grading
+    const sub = await Submission.findById(req.params.id);
+    await Notification.create({
+      userId: sub.studentId,
+      actorId: req.user._id,
+      type: 'grade',
+      title: 'Assignment graded',
+      body: 'Your submission has been graded.',
+      link: `/assignments/${sub.assignmentId}`,
+      courseId: sub.courseId,
+      moduleId: sub.moduleId,
+      assignmentId: sub.assignmentId
+    });
 
     res.json({
       success: true,

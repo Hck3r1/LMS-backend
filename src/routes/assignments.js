@@ -4,6 +4,7 @@ const Assignment = require('../models/Assignment');
 const Course = require('../models/Course');
 const { protect, authorize, checkEnrollment } = require('../middleware/auth');
 const { uploadAssignmentFiles } = require('../middleware/upload');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -148,6 +149,21 @@ router.post('/', [
       dueDate,
       maxPoints
     });
+
+    // Notify enrolled students of new assignment
+    const enrolled = course.enrolledStudents || [];
+    const notifications = enrolled.map(e => ({
+      userId: e.student,
+      actorId: req.user._id,
+      type: 'assignment',
+      title: 'New assignment',
+      body: `${title} has been posted in ${course.title}.`,
+      link: `/courses/${course._id}/modules/${moduleId}`,
+      courseId: course._id,
+      moduleId,
+      assignmentId: assignment._id
+    }));
+    if (notifications.length) await Notification.insertMany(notifications);
 
     res.status(201).json({
       success: true,
