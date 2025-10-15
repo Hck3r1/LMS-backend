@@ -276,7 +276,7 @@ router.post('/', [
   body('difficulty').isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   body('duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 hour'),
   // price removed for free LMS
-  body('learningObjectives').optional().isArray().withMessage('Learning objectives must be an array'),
+  // learningObjectives can be string (newline/comma separated) or array; validated in handler
   body('tags').optional().isArray().withMessage('Tags must be an array')
 ], async (req, res) => {
   try {
@@ -295,6 +295,17 @@ router.post('/', [
         .split(/[\n,]/)
         .map(s => s.trim())
         .filter(Boolean);
+    }
+    // Validate learning objectives content length (10-100 chars each)
+    if (Array.isArray(req.body.learningObjectives)) {
+      const invalid = req.body.learningObjectives.find(obj => obj.length < 10 || obj.length > 100);
+      if (invalid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: [{ path: 'learningObjectives', msg: 'Each learning objective must be between 10 and 100 characters' }]
+        });
+      }
     }
     const courseData = {
       ...req.body,
