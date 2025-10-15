@@ -96,7 +96,8 @@ router.get('/', [
   query('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   query('difficulty').optional().isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   query('search').optional().isLength({ min: 1 }).withMessage('Search term cannot be empty'),
-  query('sort').optional().isIn(['newest', 'oldest', 'rating', 'popular']).withMessage('Invalid sort option')
+  query('sort').optional().isIn(['newest', 'oldest', 'rating', 'popular']).withMessage('Invalid sort option'),
+  query('instructor').optional().isMongoId().withMessage('Invalid instructor id')
 ], optionalAuth, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -113,7 +114,7 @@ router.get('/', [
     const skip = (page - 1) * limit;
 
     // Build filter object
-    const filter = { isPublished: true };
+    let filter = { isPublished: true };
 
     if (req.query.category) {
       filter.category = req.query.category;
@@ -125,6 +126,17 @@ router.get('/', [
 
     if (req.query.search) {
       filter.$text = { $search: req.query.search };
+    }
+
+    // If instructor filter provided and authorized, show all courses by instructor (published or drafts)
+    if (req.query.instructor) {
+      const isOwner = req.user && (req.user._id.toString() === req.query.instructor || req.user.role === 'admin');
+      if (isOwner) {
+        filter = { instructor: req.query.instructor };
+      } else {
+        // if not owner, still restrict to published courses of that instructor
+        filter = { instructor: req.query.instructor, isPublished: true };
+      }
     }
 
     // Build sort object

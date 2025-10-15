@@ -22,7 +22,9 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists with this email' });
     }
 
-    const user = await User.create({ firstName, lastName, email, password, role, specialization });
+    const userData = { firstName, lastName, email, password, role };
+    if ((role === 'tutor' || role === 'admin') && specialization) userData.specialization = specialization;
+    const user = await User.create(userData);
     const token = generateToken(user._id);
 
     return res.status(201).json({
