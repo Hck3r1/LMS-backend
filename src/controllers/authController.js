@@ -101,32 +101,52 @@ exports.getMe = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    const user = await User.findById(req.user._id)
-      .populate('enrolledCourses', 'title thumbnail instructor duration difficulty rating')
-      .populate('createdCourses', 'title thumbnail enrolledStudents rating');
-
-    if (!user) {
+    // Fetch without populate first
+    const baseUser = await User.findById(req.user._id).select('-password');
+    if (!baseUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    let enrolledCourses = [];
+    let createdCourses = [];
+    try {
+      // Filter invalid IDs defensively
+      const toValidIds = (arr) => (Array.isArray(arr) ? arr.filter(id => typeof id === 'string' || (id && id._id) || /^[a-f\d]{24}$/i.test(String(id))) : []);
+      const validEnrolled = toValidIds(baseUser.enrolledCourses);
+      const validCreated = toValidIds(baseUser.createdCourses);
+
+      const populated = await User.findById(req.user._id)
+        .populate({ path: 'enrolledCourses', select: 'title thumbnail instructor duration difficulty rating', match: { _id: { $in: validEnrolled } } })
+        .populate({ path: 'createdCourses', select: 'title thumbnail enrolledStudents rating', match: { _id: { $in: validCreated } } })
+        .select('-password');
+
+      enrolledCourses = Array.isArray(populated.enrolledCourses) ? populated.enrolledCourses : [];
+      createdCourses = Array.isArray(populated.createdCourses) ? populated.createdCourses : [];
+    } catch (e) {
+      // Fallback if populate fails
+      enrolledCourses = [];
+      createdCourses = [];
+      console.warn('getMe populate failed, returning minimal user:', e.message);
+    }
+
     const safeUser = {
-      id: user._id,
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      email: user.email || '',
-      role: user.role || 'student',
-      specialization: user.specialization || '',
-      avatar: user.avatar || '',
-      bio: user.bio || '',
-      skills: Array.isArray(user.skills) ? user.skills : [],
-      isEmailVerified: !!user.isEmailVerified,
-      enrollmentDate: user.enrollmentDate || null,
-      lastLogin: user.lastLogin || null,
-      profileCompletion: user.profileCompletion || 0,
-      enrolledCourses: Array.isArray(user.enrolledCourses) ? user.enrolledCourses : [],
-      createdCourses: Array.isArray(user.createdCourses) ? user.createdCourses : [],
-      rating: user.rating || { average: 0, count: 0 },
-      totalStudents: typeof user.totalStudents === 'number' ? user.totalStudents : 0
+      id: baseUser._id,
+      firstName: baseUser.firstName || '',
+      lastName: baseUser.lastName || '',
+      email: baseUser.email || '',
+      role: baseUser.role || 'student',
+      specialization: baseUser.specialization || '',
+      avatar: baseUser.avatar || '',
+      bio: baseUser.bio || '',
+      skills: Array.isArray(baseUser.skills) ? baseUser.skills : [],
+      isEmailVerified: !!baseUser.isEmailVerified,
+      enrollmentDate: baseUser.enrollmentDate || null,
+      lastLogin: baseUser.lastLogin || null,
+      profileCompletion: baseUser.profileCompletion || 0,
+      enrolledCourses,
+      createdCourses,
+      rating: baseUser.rating || { average: 0, count: 0 },
+      totalStudents: typeof baseUser.totalStudents === 'number' ? baseUser.totalStudents : 0
     };
 
     return res.json({ success: true, data: { user: safeUser } });
