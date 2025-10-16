@@ -3,6 +3,7 @@ const { body, validationResult, query } = require('express-validator');
 const Notification = require('../models/Notification');
 const UserPreferences = require('../models/UserPreferences');
 const { protect } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
@@ -151,5 +152,19 @@ router.put('/preferences', protect, async (req, res) => {
 });
 
 module.exports = router;
+
+// Unsubscribe route (token-based)
+router.get('/unsubscribe/:userId/:token', async (req, res) => {
+  try {
+    const { userId, token } = req.params;
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    if (String(payload.sub) !== String(userId) || payload.purpose !== 'unsubscribe') throw new Error('Invalid token');
+    await UserPreferences.findOneAndUpdate({ userId }, { $set: { categories: { announcements: false, assignments: false, grades: false } } }, { upsert: true });
+    res.send('You have been unsubscribed from email notifications.');
+  } catch (e) {
+    console.error('Unsubscribe error:', e);
+    res.status(400).send('Invalid or expired unsubscribe link.');
+  }
+});
 
 

@@ -6,6 +6,7 @@ const { protect, authorize, optionalAuth, checkEnrollment } = require('../middle
 const { uploadThumbnail, uploadBanner } = require('../middleware/upload');
 const Notification = require('../models/Notification');
 const { emitToUser } = require('../utils/socket');
+const { body: vbody } = require('express-validator');
 
 const router = express.Router();
 /**
@@ -836,6 +837,38 @@ router.get('/:id/analytics', protect, async (req, res) => {
       success: false,
       message: 'Server error fetching course analytics'
     });
+  }
+});
+
+// @desc    Track time spent by enrolled student
+// @route   POST /api/courses/:id/track
+// @access  Private (Student)
+router.post('/:id/track', [
+  protect,
+  authorize('student', 'admin'),
+  vbody('moduleId').optional().isMongoId(),
+  vbody('seconds').isInt({ min: 1, max: 600 }).withMessage('seconds must be between 1 and 600')
+], async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+    const enrollment = course.enrolledStudents.find(e => e.student.toString() === req.user._id.toString());
+    if (!enrollment) return res.status(403).json({ success: false, message: 'Not enrolled' });
+
+    const seconds = parseInt(req.body.seconds || 0);
+    enrollment.totalTimeSeconds = (enrollment.totalTimeSeconds || 0) + seconds;
+    enrollment.lastAccessed = new Date();
+    // Optional: per-module time aggregation
+    if (req.body.moduleId) {
+      enrollment.moduleTime = enrollment.moduleTime || {};
+      const key = req.body.moduleId.toString();
+      enrollment.moduleTime.set ? enrollment.moduleTime.set(key, (enrollment.moduleTime.get(key) || 0) + seconds) : (enrollment.moduleTime[key] = (enrollment.moduleTime[key] || 0) + seconds);
+    }
+    await course.save();
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Track time error:', e);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

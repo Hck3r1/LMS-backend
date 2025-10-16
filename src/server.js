@@ -16,6 +16,12 @@ const assignmentRoutes = require('./routes/assignments');
 const submissionRoutes = require('./routes/submissions');
 const analyticsRoutes = require('./routes/analytics');
 const notificationRoutes = require('./routes/notifications');
+const quizRoutes = require('./routes/quizzes');
+const forumRoutes = require('./routes/forums');
+const messageRoutes = require('./routes/messages');
+const reviewRoutes = require('./routes/reviews');
+const achievementRoutes = require('./routes/achievements');
+const certificateRoutes = require('./routes/certificates');
 
 const app = express();
 
@@ -96,6 +102,12 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/quizzes', quizRoutes);
+app.use('/api/forums', forumRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/certificates', certificateRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -5,6 +5,47 @@ const Submission = require('../models/Submission');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
+/**
+ * @swagger
+ * /analytics/student/{studentId}/overview:
+ *   get:
+ *     summary: Student overview analytics (live stats)
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Student overview stats
+ */
+router.get('/student/:studentId/overview', protect, authorize('student', 'admin'), async (req, res) => {
+  try {
+    const student = await User.findById(req.params.studentId).populate('enrolledCourses', 'modules');
+    if (!student || (student.role !== 'student' && req.user.role !== 'admin')) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    const enrolledCourses = Array.isArray(student.enrolledCourses) ? student.enrolledCourses : [];
+    const totalCourses = enrolledCourses.length;
+
+    // Compute modules counts (requires course.modules to be actual refs or lengths)
+    const totalModules = enrolledCourses.reduce((sum, c) => sum + (Array.isArray(c.modules) ? c.modules.length : 0), 0);
+    // Placeholder for completedModules and averageGrade (needs per-student progress & submissions schema)
+    const completedModules = 0;
+    const averageGrade = 0;
+    const totalStudyTime = 0;
+
+    res.json({ success: true, data: { totalCourses, totalModules, completedModules, averageGrade, totalStudyTime } });
+  } catch (e) {
+    console.error('Student overview error:', e);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // Helpers
 const parseTimeframe = (tf) => {

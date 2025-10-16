@@ -4,6 +4,7 @@ const Submission = require('../models/Submission');
 const Notification = require('../models/Notification');
 const UserPreferences = require('../models/UserPreferences');
 const { emitToUser } = require('./socket');
+const { sendEmail, assignmentDueSoonTemplate } = require('./email');
 
 function isWithinQuietHours(prefs) {
   if (!prefs?.quietHours?.enabled) return false;
@@ -65,6 +66,15 @@ async function runDueSoonScan(windowHours = 24) {
         assignmentId: a._id,
         courseId: course._id
       });
+
+      // Email student (best-effort)
+      try {
+        const student = await require('../models/User').findById(studentId);
+        if (student?.email) {
+          const template = assignmentDueSoonTemplate({ studentName: student.firstName, courseTitle: course.title, assignmentTitle: a.title, dueDate: a.dueDate.toLocaleString() });
+          await sendEmail({ to: student.email, ...template });
+        }
+      } catch (_) {}
     }
   }
 }

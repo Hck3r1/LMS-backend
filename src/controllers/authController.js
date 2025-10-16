@@ -97,34 +97,39 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     const user = await User.findById(req.user._id)
       .populate('enrolledCourses', 'title thumbnail instructor duration difficulty rating')
       .populate('createdCourses', 'title thumbnail enrolledStudents rating');
 
-    return res.json({
-      success: true,
-      data: {
-        user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role,
-          specialization: user.specialization,
-          avatar: user.avatar,
-          bio: user.bio,
-          skills: user.skills,
-          isEmailVerified: user.isEmailVerified,
-          enrollmentDate: user.enrollmentDate,
-          lastLogin: user.lastLogin,
-          profileCompletion: user.profileCompletion,
-          enrolledCourses: user.enrolledCourses,
-          createdCourses: user.createdCourses,
-          rating: user.rating,
-          totalStudents: user.totalStudents
-        }
-      }
-    });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const safeUser = {
+      id: user._id,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      email: user.email || '',
+      role: user.role || 'student',
+      specialization: user.specialization || '',
+      avatar: user.avatar || '',
+      bio: user.bio || '',
+      skills: Array.isArray(user.skills) ? user.skills : [],
+      isEmailVerified: !!user.isEmailVerified,
+      enrollmentDate: user.enrollmentDate || null,
+      lastLogin: user.lastLogin || null,
+      profileCompletion: user.profileCompletion || 0,
+      enrolledCourses: Array.isArray(user.enrolledCourses) ? user.enrolledCourses : [],
+      createdCourses: Array.isArray(user.createdCourses) ? user.createdCourses : [],
+      rating: user.rating || { average: 0, count: 0 },
+      totalStudents: typeof user.totalStudents === 'number' ? user.totalStudents : 0
+    };
+
+    return res.json({ success: true, data: { user: safeUser } });
   } catch (error) {
     console.error('Get user error:', error);
     return res.status(500).json({ success: false, message: 'Server error fetching user data' });

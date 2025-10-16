@@ -7,12 +7,34 @@ const { protect, authorize } = require('../middleware/auth');
 const { uploadAssignmentFiles } = require('../middleware/upload');
 const Notification = require('../models/Notification');
 const { emitToUser } = require('../utils/socket');
+const { sendEmail, assignmentGradedTemplate, assignmentSubmittedTemplate } = require('../utils/email');
+const { gradeCode } = require('../utils/codeRunner');
 
 const router = express.Router();
 
-// @desc    Submit assignment
-// @route   POST /api/submissions
-// @access  Private (Student only)
+/**
+ * @swagger
+ * /submissions:
+ *   post:
+ *     summary: Submit an assignment
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               assignmentId: { type: string }
+ *               textSubmission: { type: string }
+ *               codeSubmission: { type: string, description: JSON string }
+ *               files: { type: array, items: { type: string, format: binary } }
+ *     responses:
+ *       201:
+ *         description: Assignment submitted
+ */
 router.post('/', [
   protect,
   authorize('student', 'admin'),
@@ -103,6 +125,20 @@ router.post('/', [
 
     const submission = await Submission.create(submissionData);
 
+    // If assignment is code_submission and has tests (in assignment.instructions JSON), auto-grade
+    try {
+      if (assignment.type === 'code_submission') {
+        const meta = (() => { try { return JSON.parse(assignment.instructions || '{}'); } catch { return {}; } })();
+        if (meta.entry && Array.isArray(meta.tests)) {
+          const result = gradeCode({ code: submission.textSubmission || (submission.codeSubmission?.source || ''), entry: meta.entry, tests: meta.tests });
+          submission.gradePercentage = result.percentage;
+          submission.status = 'graded';
+          submission.gradedAt = new Date();
+          await submission.save();
+        }
+      }
+    } catch (_) {}
+
     // Add submission to assignment
     assignment.submissions.push(submission._id);
     assignment.totalSubmissions += 1;
@@ -113,6 +149,15 @@ router.post('/', [
       message: 'Assignment submitted successfully',
       data: { submission }
     });
+    // Email tutor about new submission (best-effort)
+    try {
+      const tutorId = assignment.courseId.instructor;
+      const tutor = await require('../models/User').findById(tutorId);
+      const template = assignmentSubmittedTemplate({ tutorName: tutor?.firstName, courseTitle: assignment.courseId.title || 'Course', assignmentTitle: assignment.title, studentName: req.user.firstName });
+      if (tutor?.email) await sendEmail({ to: tutor.email, ...template });
+    } catch (e) {
+      console.warn('Email new submission failed:', e.message);
+    }
   } catch (error) {
     console.error('Submit assignment error:', error);
     res.status(500).json({
@@ -122,9 +167,23 @@ router.post('/', [
   }
 });
 
-// @desc    Get assignment submissions (for tutors)
-// @route   GET /api/submissions/assignment/:assignmentId
-// @access  Private (Tutor only)
+/**
+ * @swagger
+ * /submissions/assignment/{assignmentId}:
+ *   get:
+ *     summary: Get submissions for a specific assignment
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: assignmentId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: List of submissions
+ */
 router.get('/assignment/:assignmentId', protect, authorize('tutor', 'admin'), async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.assignmentId)
@@ -160,9 +219,26 @@ router.get('/assignment/:assignmentId', protect, authorize('tutor', 'admin'), as
   }
 });
 
-// @desc    Get student submissions
-// @route   GET /api/submissions/student/:studentId
-// @access  Private (Student or tutor/admin)
+/**
+ * @swagger
+ * /submissions/student/{studentId}:
+ *   get:
+ *     summary: Get submissions for a student
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: courseId
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: List of submissions
+ */
 router.get('/student/:studentId', protect, async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -191,9 +267,23 @@ router.get('/student/:studentId', protect, async (req, res) => {
   }
 });
 
-// @desc    Get single submission
-// @route   GET /api/submissions/:id
-// @access  Private (Student, tutor, admin)
+/**
+ * @swagger
+ * /submissions/{id}:
+ *   get:
+ *     summary: Get a single submission by ID
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Submission details
+ */
 router.get('/:id', protect, async (req, res) => {
   try {
     const submission = await Submission.findById(req.params.id)
@@ -235,9 +325,37 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
-// @desc    Grade submission
-// @route   PUT /api/submissions/:id/grade
-// @access  Private (Tutor only)
+/**
+ * @swagger
+ * /submissions/{id}/grade:
+ *   put:
+ *     summary: Grade a submission
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               grade: { type: number }
+ *               feedback:
+ *                 type: object
+ *                 properties:
+ *                   general: { type: string }
+ *                   strengths: { type: array, items: { type: string } }
+ *                   improvements: { type: array, items: { type: string } }
+ *     responses:
+ *       200:
+ *         description: Submission graded
+ */
 router.put('/:id/grade', [
   protect,
   authorize('tutor', 'admin'),
@@ -300,6 +418,15 @@ router.put('/:id/grade', [
     courseId: sub.courseId
   });
 
+    // Email student about grading (best-effort)
+    try {
+      const student = await require('../models/User').findById(sub.studentId);
+      const template = assignmentGradedTemplate({ studentName: student?.firstName, courseTitle: submission.courseId.title || 'Course', assignmentTitle: submission.assignmentId.title || 'Assignment', grade: submission.gradePercentage || 0 });
+      if (student?.email) await sendEmail({ to: student.email, ...template });
+    } catch (e) {
+      console.warn('Email graded failed:', e.message);
+    }
+
     res.json({
       success: true,
       message: 'Submission graded successfully',
@@ -314,9 +441,32 @@ router.put('/:id/grade', [
   }
 });
 
-// @desc    Add comment to submission
-// @route   POST /api/submissions/:id/comments
-// @access  Private (Student, tutor, admin)
+/**
+ * @swagger
+ * /submissions/{id}/comments:
+ *   post:
+ *     summary: Add a comment to a submission
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content: { type: string }
+ *               isPrivate: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Comment added
+ */
 router.post('/:id/comments', [
   protect,
   body('content').trim().isLength({ min: 1, max: 1000 }).withMessage('Comment must be between 1 and 1000 characters'),
@@ -371,9 +521,18 @@ router.post('/:id/comments', [
   }
 });
 
-// @desc    Get ungraded submissions
-// @route   GET /api/submissions/ungraded
-// @access  Private (Tutor, admin)
+/**
+ * @swagger
+ * /submissions/ungraded:
+ *   get:
+ *     summary: Get ungraded submissions (for tutor/admin)
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of ungraded submissions
+ */
 router.get('/ungraded', protect, authorize('tutor', 'admin'), async (req, res) => {
   try {
     const submissions = await Submission.getUngradedSubmissions();
@@ -399,9 +558,31 @@ router.get('/ungraded', protect, authorize('tutor', 'admin'), async (req, res) =
   }
 });
 
-// @desc    Update submission status
-// @route   PUT /api/submissions/:id/status
-// @access  Private (Tutor only)
+/**
+ * @swagger
+ * /submissions/{id}/status:
+ *   put:
+ *     summary: Update submission status
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status: { type: string, enum: [draft, submitted, under_review, graded, returned] }
+ *     responses:
+ *       200:
+ *         description: Status updated
+ */
 router.put('/:id/status', [
   protect,
   authorize('tutor', 'admin'),

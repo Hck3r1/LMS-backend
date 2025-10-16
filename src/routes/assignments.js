@@ -2,10 +2,12 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Assignment = require('../models/Assignment');
 const Course = require('../models/Course');
+const Module = require('../models/Module');
 const { protect, authorize, checkEnrollment } = require('../middleware/auth');
 const { uploadAssignmentFiles } = require('../middleware/upload');
 const Notification = require('../models/Notification');
 const { emitToUser } = require('../utils/socket');
+const { sendEmail, assignmentDueSoonTemplate, assignmentCreatedTemplate } = require('../utils/email');
 
 const router = express.Router();
 
@@ -173,6 +175,19 @@ router.post('/', [
       moduleId,
       assignmentId: assignment._id
     }));
+
+    // Email enrolled students (best-effort)
+    try {
+      const User = require('../models/User');
+      const students = await User.find({ _id: { $in: enrolled.map(s => s.student) } }).select('email firstName').lean();
+      for (const s of students) {
+        if (!s.email) continue;
+        const template = assignmentCreatedTemplate({ studentName: s.firstName, courseTitle: course.title, assignmentTitle: title, dueDate: new Date(dueDate).toLocaleString() });
+        await sendEmail({ to: s.email, ...template });
+      }
+    } catch (e) {
+      console.warn('Email assignment created failed:', e.message);
+    }
 
     res.status(201).json({
       success: true,
