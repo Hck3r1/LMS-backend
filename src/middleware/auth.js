@@ -13,6 +13,7 @@ const protect = async (req, res, next) => {
 
     // Check if token exists
     if (!token) {
+      console.log('🔒 Auth: No token provided for request to:', req.path);
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
@@ -22,11 +23,13 @@ const protect = async (req, res, next) => {
     try {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('🔓 Auth: Token verified for user:', decoded.id);
       
       // Get user from token
       const user = await User.findById(decoded.id).select('-password');
       
       if (!user) {
+        console.log('❌ Auth: User not found for token:', decoded.id);
         return res.status(401).json({
           success: false,
           message: 'Token is valid but user no longer exists.'
@@ -34,11 +37,14 @@ const protect = async (req, res, next) => {
       }
 
       if (!user.isActive) {
+        console.log('❌ Auth: User account deactivated:', decoded.id);
         return res.status(401).json({
           success: false,
           message: 'Account has been deactivated.'
         });
       }
+
+      console.log('✅ Auth: User authenticated successfully:', user.email, 'Role:', user.role);
 
       // Update last login
       user.lastLogin = new Date();
@@ -47,6 +53,7 @@ const protect = async (req, res, next) => {
       req.user = user;
       next();
     } catch (error) {
+      console.log('❌ Auth: Token verification failed:', error.message);
       return res.status(401).json({
         success: false,
         message: 'Invalid token.'

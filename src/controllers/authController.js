@@ -54,21 +54,35 @@ exports.login = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Login: Validation failed:', errors.array());
       return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
     }
 
     const { email, password } = req.body;
+    console.log('🔐 Login attempt for email:', email);
+    
     const user = await User.findOne({ email }).select('+password');
-    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    if (!user.isActive) return res.status(401).json({ success: false, message: 'Account has been deactivated' });
+    if (!user) {
+      console.log('❌ Login: User not found for email:', email);
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+    
+    if (!user.isActive) {
+      console.log('❌ Login: Account deactivated for email:', email);
+      return res.status(401).json({ success: false, message: 'Account has been deactivated' });
+    }
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    if (!isMatch) {
+      console.log('❌ Login: Invalid password for email:', email);
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
 
     user.lastLogin = new Date();
     await user.save();
 
     const token = generateToken(user._id);
+    console.log('✅ Login: Successful login for user:', user.email, 'Role:', user.role, 'Token expires in:', process.env.JWT_EXPIRE || '7d');
 
     return res.json({
       success: true,
@@ -90,7 +104,7 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     return res.status(500).json({ success: false, message: 'Server error during login' });
   }
 };

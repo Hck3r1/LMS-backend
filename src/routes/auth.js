@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
@@ -358,6 +359,100 @@ router.delete('/account', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error deleting account'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh JWT token
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *       401:
+ *         description: Invalid or expired token
+ */
+router.post('/refresh', protect, async (req, res) => {
+  try {
+    console.log('🔄 Token refresh requested for user:', req.user.email);
+    
+    // Generate new token
+    const newToken = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE || '7d'
+    });
+
+    console.log('✅ Token refreshed successfully for user:', req.user.email);
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      data: {
+        token: newToken
+      }
+    });
+  } catch (error) {
+    console.error('❌ Token refresh error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error refreshing token'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /auth/check-token:
+ *   get:
+ *     summary: Check if current token is valid
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token is valid
+ *       401:
+ *         description: Token is invalid or expired
+ */
+router.get('/check-token', protect, async (req, res) => {
+  try {
+    console.log('🔍 Token check requested for user:', req.user.email);
+    
+    res.json({
+      success: true,
+      message: 'Token is valid',
+      data: {
+        user: {
+          id: req.user._id,
+          email: req.user.email,
+          role: req.user.role,
+          isActive: req.user.isActive
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Token check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error checking token'
     });
   }
 });
