@@ -59,30 +59,33 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Module'
   }],
-  enrolledStudents: [{
-    student: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    enrolledAt: {
-      type: Date,
-      default: Date.now
-    },
-    progress: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100
-    },
-    completedModules: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Module'
+  enrolledStudents: {
+    type: [{
+      student: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      enrolledAt: {
+        type: Date,
+        default: Date.now
+      },
+      progress: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+      },
+      completedModules: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Module'
+      }],
+      lastAccessed: {
+        type: Date,
+        default: Date.now
+      }
     }],
-    lastAccessed: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+    default: []
+  },
   prerequisites: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course'
@@ -149,13 +152,13 @@ const courseSchema = new mongoose.Schema({
 
 // Virtual for total enrolled students
 courseSchema.virtual('enrollmentCount').get(function() {
-  return this.enrolledStudents.length;
+  return Array.isArray(this.enrolledStudents) ? this.enrolledStudents.length : 0;
 });
 
 // Virtual for completion percentage
 courseSchema.virtual('completionPercentage').get(function() {
-  if (this.enrolledStudents.length === 0) return 0;
-  const totalProgress = this.enrolledStudents.reduce((sum, enrollment) => sum + enrollment.progress, 0);
+  if (!Array.isArray(this.enrolledStudents) || this.enrolledStudents.length === 0) return 0;
+  const totalProgress = this.enrolledStudents.reduce((sum, enrollment) => sum + (enrollment.progress || 0), 0);
   return Math.round(totalProgress / this.enrolledStudents.length);
 });
 
@@ -169,12 +172,17 @@ courseSchema.index({ title: 'text', description: 'text', tags: 'text' });
 
 // Middleware to update total modules count
 courseSchema.pre('save', function(next) {
-  this.totalModules = this.modules.length;
+  this.totalModules = Array.isArray(this.modules) ? this.modules.length : 0;
   next();
 });
 
 // Method to add student enrollment
 courseSchema.methods.enrollStudent = function(studentId) {
+  // Ensure enrolledStudents is an array
+  if (!Array.isArray(this.enrolledStudents)) {
+    this.enrolledStudents = [];
+  }
+
   const existingEnrollment = this.enrolledStudents.find(
     enrollment => enrollment.student.toString() === studentId.toString()
   );
@@ -194,21 +202,25 @@ courseSchema.methods.enrollStudent = function(studentId) {
 
 // Method to remove student enrollment
 courseSchema.methods.unenrollStudent = function(studentId) {
-  this.enrolledStudents = this.enrolledStudents.filter(
-    enrollment => enrollment.student.toString() !== studentId.toString()
-  );
+  if (Array.isArray(this.enrolledStudents)) {
+    this.enrolledStudents = this.enrolledStudents.filter(
+      enrollment => enrollment.student.toString() !== studentId.toString()
+    );
+  }
   return this.save();
 };
 
 // Method to update student progress
 courseSchema.methods.updateStudentProgress = function(studentId, moduleId) {
+  if (!Array.isArray(this.enrolledStudents)) return this.save();
+  
   const enrollment = this.enrolledStudents.find(
     enrollment => enrollment.student.toString() === studentId.toString()
   );
   
-  if (enrollment && !enrollment.completedModules.includes(moduleId)) {
+  if (enrollment && Array.isArray(enrollment.completedModules) && !enrollment.completedModules.includes(moduleId)) {
     enrollment.completedModules.push(moduleId);
-    enrollment.progress = Math.round((enrollment.completedModules.length / this.totalModules) * 100);
+    enrollment.progress = Math.round((enrollment.completedModules.length / (this.totalModules || 1)) * 100);
     enrollment.lastAccessed = new Date();
   }
   
@@ -217,7 +229,7 @@ courseSchema.methods.updateStudentProgress = function(studentId, moduleId) {
 
 // Method to calculate course rating
 courseSchema.methods.calculateRating = function() {
-  if (this.rating.count === 0) return;
+  if (!this.rating || this.rating.count === 0 || !this.rating.breakdown) return;
   
   const totalStars = Object.values(this.rating.breakdown).reduce((sum, count) => sum + count, 0);
   if (totalStars > 0) {
