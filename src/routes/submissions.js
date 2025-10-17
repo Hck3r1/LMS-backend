@@ -400,6 +400,7 @@ router.put('/:id/grade', [
 
     // Add notification after grading
     const sub = await Submission.findById(req.params.id);
+    console.log('🔔 Creating grade notification for student:', sub.studentId, 'by instructor:', req.user._id);
     await Notification.create({
       userId: sub.studentId,
       actorId: req.user._id,

@@ -113,7 +113,13 @@ router.get('/:id/students', protect, async (req, res) => {
  *                     courses:
  *                       type: array
  *                       items:
- *                         $ref: '#/components/schemas/Course'
+ *                         allOf:
+ *                           - $ref: '#/components/schemas/Course'
+ *                           - type: object
+ *                             properties:
+ *                               isEnrolled:
+ *                                 type: boolean
+ *                                 description: Whether the authenticated user is enrolled in this course (only present for authenticated users)
  *                     pagination:
  *                       type: object
  *                       properties:
@@ -204,16 +210,33 @@ router.get('/', [
 
     const courses = await Course.find(filter)
       .populate('instructor', 'firstName lastName avatar specialization rating')
+      .populate('enrolledStudents.student', '_id')
       .sort(sort)
       .skip(skip)
       .limit(limit);
 
     const total = await Course.countDocuments(filter);
 
+    // Add isEnrolled field for authenticated users
+    let coursesWithEnrollment = courses;
+    if (req.user) {
+      console.log('📚 Adding enrollment status for user:', req.user.email);
+      coursesWithEnrollment = courses.map(course => {
+        const courseObj = course.toObject();
+        // Check if user is enrolled in this course
+        const isEnrolled = course.enrolledStudents && course.enrolledStudents.some(
+          enrollment => enrollment.student && enrollment.student.toString() === req.user._id.toString()
+        );
+        courseObj.isEnrolled = !!isEnrolled;
+        return courseObj;
+      });
+      console.log('📚 Enrollment status added to', coursesWithEnrollment.length, 'courses');
+    }
+
     res.json({
       success: true,
       data: {
-        courses,
+        courses: coursesWithEnrollment,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -256,7 +279,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
     const course = await Course.findById(req.params.id)
       .populate('instructor', 'firstName lastName avatar bio specialization rating totalStudents')
       .populate('modules', 'title description order estimatedTime')
-      .populate('prerequisites', 'title thumbnail difficulty');
+      .populate('prerequisites', 'title thumbnail difficulty')
+      .populate('enrolledStudents.student', '_id');
 
     if (!course) {
       return res.status(404).json({
@@ -268,9 +292,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
     // Check if user is enrolled (if authenticated)
     let isEnrolled = false;
     if (req.user) {
-      isEnrolled = course.enrolledStudents.some(
-        enrollment => enrollment.student.toString() === req.user._id.toString()
+      console.log('📚 Checking enrollment for user:', req.user.email, 'in course:', course.title);
+      isEnrolled = course.enrolledStudents && course.enrolledStudents.some(
+        enrollment => enrollment.student && enrollment.student.toString() === req.user._id.toString()
       );
+      console.log('📚 User enrollment status:', isEnrolled);
     }
 
     res.json({
@@ -401,6 +427,7 @@ router.post('/', [
         link: `/courses/${course._id}`,
         courseId: course._id
       }));
+      console.log('🔔 Creating notifications for course:', course.title, 'to users:', notifications.map(n => n.userId));
       await Notification.insertMany(notifications);
       interestedStudents.forEach(s => emitToUser(s._id.toString(), 'notification:new', {
         title: 'New course published',
@@ -703,12 +730,15 @@ router.post('/:id/enroll', [
     }
 
     // Enroll student
+    console.log('📚 Enrolling student:', req.user.email, 'in course:', course.title);
     await course.enrollStudent(req.user._id);
 
     // Update user's enrolled courses
-    await User.findByIdAndUpdate(req.user._id, {
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, {
       $push: { enrolledCourses: course._id }
-    });
+    }, { new: true });
+    
+    console.log('✅ Student enrolled successfully. User enrolledCourses count:', updatedUser.enrolledCourses.length);
 
     // Notify course instructor
     try {

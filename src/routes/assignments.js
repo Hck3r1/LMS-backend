@@ -166,7 +166,10 @@ router.post('/', [
       moduleId,
       assignmentId: assignment._id
     }));
-    if (notifications.length) await Notification.insertMany(notifications);
+    if (notifications.length) {
+      console.log('🔔 Creating assignment notifications for:', title, 'to users:', notifications.map(n => n.userId));
+      await Notification.insertMany(notifications);
+    }
     // Emit to users in real-time
     (course.enrolledStudents || []).forEach(e => emitToUser(e.student.toString(), 'notification:new', {
       title: 'New assignment',

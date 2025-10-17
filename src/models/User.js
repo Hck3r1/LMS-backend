@@ -69,19 +69,28 @@ const userSchema = new mongoose.Schema({
   passwordResetToken: String,
   passwordResetExpires: Date,
   // Student specific fields
-  enrolledCourses: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course'
-  }],
-  completedModules: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Module'
-  }],
+  enrolledCourses: {
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course'
+    }],
+    default: []
+  },
+  completedModules: {
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Module'
+    }],
+    default: []
+  },
   // Tutor specific fields
-  createdCourses: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course'
-  }],
+  createdCourses: {
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course'
+    }],
+    default: []
+  },
   rating: {
     average: {
       type: Number,

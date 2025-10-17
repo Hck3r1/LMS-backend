@@ -160,4 +160,72 @@ router.get('/tutors/:id/specialization-stats', protect, authorize('tutor', 'admi
   }
 });
 
+/**
+ * @swagger
+ * /users/fix-arrays:
+ *   post:
+ *     summary: Fix undefined arrays for current user (development only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Arrays fixed
+ */
+router.post('/fix-arrays', protect, async (req, res) => {
+  try {
+    console.log('🔧 Fixing arrays for user:', req.user.email);
+    
+    const updateData = {};
+    
+    // Fix undefined arrays
+    if (!Array.isArray(req.user.enrolledCourses)) {
+      updateData.enrolledCourses = [];
+    }
+    if (!Array.isArray(req.user.createdCourses)) {
+      updateData.createdCourses = [];
+    }
+    if (!Array.isArray(req.user.completedModules)) {
+      updateData.completedModules = [];
+    }
+    if (!Array.isArray(req.user.skills)) {
+      updateData.skills = [];
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      const updatedUser = await User.findByIdAndUpdate(req.user._id, updateData, { new: true });
+      console.log('✅ Fixed arrays for user:', updatedUser.email);
+      
+      res.json({
+        success: true,
+        message: 'Arrays fixed successfully',
+        data: {
+          fixedFields: Object.keys(updateData),
+          enrolledCourses: updatedUser.enrolledCourses.length,
+          createdCourses: updatedUser.createdCourses.length,
+          completedModules: updatedUser.completedModules.length,
+          skills: updatedUser.skills.length
+        }
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'No arrays needed fixing',
+        data: {
+          enrolledCourses: req.user.enrolledCourses.length,
+          createdCourses: req.user.createdCourses.length,
+          completedModules: req.user.completedModules.length,
+          skills: req.user.skills.length
+        }
+      });
+    }
+  } catch (error) {
+    console.error('❌ Fix arrays error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fixing arrays'
+    });
+  }
+});
+
 module.exports = router;

@@ -128,6 +128,8 @@ exports.getMe = async (req, res) => {
     }
     
     console.log('✅ getMe: Base user found:', baseUser.email);
+    console.log('🔍 getMe: User enrolledCourses raw data:', baseUser.enrolledCourses);
+    console.log('🔍 getMe: User enrolledCourses length:', baseUser.enrolledCourses ? baseUser.enrolledCourses.length : 'undefined');
 
     let enrolledCourses = [];
     let createdCourses = [];
@@ -136,6 +138,9 @@ exports.getMe = async (req, res) => {
       const toValidIds = (arr) => (Array.isArray(arr) ? arr.filter(id => typeof id === 'string' || (id && id._id) || /^[a-f\d]{24}$/i.test(String(id))) : []);
       const validEnrolled = toValidIds(baseUser.enrolledCourses);
       const validCreated = toValidIds(baseUser.createdCourses);
+      
+      console.log('🔍 getMe: Valid enrolled IDs:', validEnrolled);
+      console.log('🔍 getMe: Valid created IDs:', validCreated);
 
       const populated = await User.findById(req.user._id)
         .populate({ path: 'enrolledCourses', select: 'title thumbnail instructor duration difficulty rating', match: { _id: { $in: validEnrolled } } })
@@ -144,11 +149,14 @@ exports.getMe = async (req, res) => {
 
       enrolledCourses = Array.isArray(populated.enrolledCourses) ? populated.enrolledCourses : [];
       createdCourses = Array.isArray(populated.createdCourses) ? populated.createdCourses : [];
+      
+      console.log('🔍 getMe: Populated enrolledCourses:', enrolledCourses.length, 'courses');
+      console.log('🔍 getMe: Populated createdCourses:', createdCourses.length, 'courses');
     } catch (e) {
       // Fallback if populate fails
       enrolledCourses = [];
       createdCourses = [];
-      console.warn('getMe populate failed, returning minimal user:', e.message);
+      console.warn('❌ getMe populate failed, returning minimal user:', e.message);
     }
 
     const safeUser = {

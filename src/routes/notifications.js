@@ -37,18 +37,36 @@ router.get('/', [protect, query('limit').optional().isInt({ min: 1, max: 100 })]
     const { unread, cursor } = req.query;
     const limit = parseInt(req.query.limit || '20');
 
+    console.log('🔔 Fetching notifications for user:', req.user._id, req.user.email);
+
     const filter = { userId: req.user._id };
     if (unread === 'true') filter.readAt = null;
     if (cursor) filter._id = { $lt: cursor };
 
+    console.log('🔔 Filter being used:', filter);
+
     const items = await Notification.find(filter).sort({ _id: -1 }).limit(limit + 1);
+    console.log('🔔 Found notifications:', items.length, 'for user:', req.user.email);
+    
+    // Log first few notification details for debugging
+    if (items.length > 0) {
+      console.log('🔔 First notification details:', {
+        id: items[0]._id,
+        userId: items[0].userId,
+        title: items[0].title,
+        type: items[0].type
+      });
+    }
+
     const nextCursor = items.length > limit ? items[limit - 1]?._id : null;
     const data = items.slice(0, limit);
 
     const unreadCount = await Notification.countDocuments({ userId: req.user._id, readAt: null });
+    console.log('🔔 Unread count for user:', req.user.email, '=', unreadCount);
+    
     res.json({ success: true, data: { notifications: data, unreadCount, nextCursor } });
   } catch (e) {
-    console.error('List notifications error:', e);
+    console.error('❌ List notifications error:', e);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -147,6 +165,61 @@ router.put('/preferences', protect, async (req, res) => {
     res.json({ success: true, data: { preferences: prefs } });
   } catch (e) {
     console.error('Update preferences error:', e);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /notifications/debug:
+ *   get:
+ *     summary: Debug notification data (admin only)
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Debug info
+ */
+router.get('/debug', protect, async (req, res) => {
+  try {
+    // Get all notifications for this user
+    const userNotifications = await Notification.find({ userId: req.user._id }).sort({ _id: -1 }).limit(10);
+    
+    // Get total notifications count
+    const totalNotifications = await Notification.countDocuments({});
+    const userNotificationsCount = await Notification.countDocuments({ userId: req.user._id });
+    
+    // Get sample notifications from other users (for debugging)
+    const otherNotifications = await Notification.aggregate([
+      { $match: { userId: { $ne: req.user._id } } },
+      { $sample: { size: 5 } },
+      { $project: { userId: 1, title: 1, type: 1, createdAt: 1 } }
+    ]);
+    
+    res.json({
+      success: true,
+      data: {
+        currentUser: {
+          id: req.user._id,
+          email: req.user.email
+        },
+        userNotifications: userNotifications.map(n => ({
+          id: n._id,
+          userId: n.userId,
+          title: n.title,
+          type: n.type,
+          createdAt: n.createdAt
+        })),
+        counts: {
+          totalNotificationsInSystem: totalNotifications,
+          userNotifications: userNotificationsCount
+        },
+        otherUsersNotifications: otherNotifications
+      }
+    });
+  } catch (e) {
+    console.error('Debug notifications error:', e);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
