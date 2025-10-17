@@ -111,15 +111,23 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
+    console.log('🔍 getMe: Request received, user:', req.user ? req.user.email : 'No user');
+    
     if (!req.user || !req.user._id) {
+      console.log('❌ getMe: No user in request');
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
+    console.log('🔍 getMe: Fetching user data for ID:', req.user._id);
+    
     // Fetch without populate first
     const baseUser = await User.findById(req.user._id).select('-password');
     if (!baseUser) {
+      console.log('❌ getMe: User not found in database for ID:', req.user._id);
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    
+    console.log('✅ getMe: Base user found:', baseUser.email);
 
     let enrolledCourses = [];
     let createdCourses = [];
@@ -163,9 +171,10 @@ exports.getMe = async (req, res) => {
       totalStudents: typeof baseUser.totalStudents === 'number' ? baseUser.totalStudents : 0
     };
 
+    console.log('✅ getMe: Returning user data for:', safeUser.email);
     return res.json({ success: true, data: { user: safeUser } });
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error('❌ getMe: Error fetching user data:', error);
     return res.status(500).json({ success: false, message: 'Server error fetching user data' });
   }
 };

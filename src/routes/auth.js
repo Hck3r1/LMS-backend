@@ -457,4 +457,31 @@ router.get('/check-token', protect, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /auth/debug-headers:
+ *   get:
+ *     summary: Debug request headers (no auth required)
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Headers debug info
+ */
+router.get('/debug-headers', (req, res) => {
+  console.log('🔍 Debug headers request received');
+  console.log('🔍 Authorization header:', req.headers.authorization);
+  console.log('🔍 All headers:', req.headers);
+  
+  res.json({
+    success: true,
+    message: 'Headers debug info',
+    data: {
+      authorization: req.headers.authorization,
+      contentType: req.headers['content-type'],
+      userAgent: req.headers['user-agent'],
+      allHeaders: req.headers
+    }
+  });
+});
+
 module.exports = router;

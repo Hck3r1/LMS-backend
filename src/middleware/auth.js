@@ -14,6 +14,8 @@ const protect = async (req, res, next) => {
     // Check if token exists
     if (!token) {
       console.log('🔒 Auth: No token provided for request to:', req.path);
+      console.log('🔒 Auth: Authorization header:', req.headers.authorization);
+      console.log('🔒 Auth: All headers:', Object.keys(req.headers));
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
