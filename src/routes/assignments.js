@@ -155,6 +155,13 @@ router.post('/', [
       maxPoints
     });
 
+    // Link assignment to module for quick population in module queries
+    try {
+      await Module.findByIdAndUpdate(moduleId, { $addToSet: { assignments: assignment._id } });
+    } catch (e) {
+      console.warn('Link assignment to module failed:', e.message);
+    }
+
     // Notify enrolled students of new assignment
     const enrolled = course.enrolledStudents || [];
     const notifications = enrolled.map(e => ({
