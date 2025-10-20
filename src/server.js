@@ -108,8 +108,7 @@ app.use('/api/forums', forumRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/achievements', achievementRoutes);
-app.use('/api/certificates', certificateRoutes);
-
+app.use('/api/certificates', certificateR
 // Health check endpoint
 app.get('/api/health', (req, res) => {
         res.json({

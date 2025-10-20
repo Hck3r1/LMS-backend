@@ -40,9 +40,6 @@ router.get('/module/:moduleId', protect, async (req, res) => {
     }
 
     // Students: only published; Instructors/Admins: all
-    const isInstructor = course.instructor.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === 'admin';
-
     const assignments = (isInstructor || isAdmin)
       ? await Assignment.find({ moduleId: req.params.moduleId }).sort({ dueDate: 1 }).populate('moduleId', 'title').populate('courseId', 'title')
       : await Assignment.getModuleAssignments(req.params.moduleId);
