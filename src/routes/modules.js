@@ -14,10 +14,16 @@ const router = express.Router();
 // @access  Private (Enrolled students, tutors, admins)
 router.get('/course/:courseId', protect, checkEnrollment, async (req, res) => {
   try {
-    const modules = await Module.find({ 
-      courseId: req.params.courseId,
-      isPublished: true 
-    })
+    // Students: only published; Instructors/Admins: all
+    const course = req.course; // set by checkEnrollment
+    const isInstructor = course.instructor.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    const baseFilter = { courseId: req.params.courseId };
+    const filter = (isInstructor || isAdmin)
+      ? baseFilter
+      : { ...baseFilter, isPublished: true };
+
+    const modules = await Module.find(filter)
       .sort({ order: 1 })
       .populate('assignments', 'title dueDate maxPoints status');
 
