@@ -192,13 +192,17 @@ moduleSchema.index({ courseId: 1, order: 1 }, { unique: true });
 
 // Middleware to update course module count
 moduleSchema.pre('save', async function(next) {
-  if (this.isNew || this.isModified('isPublished')) {
-    const Course = mongoose.model('Course');
-    await Course.findByIdAndUpdate(this.courseId, {
-      $inc: { totalModules: this.isPublished ? 1 : -1 }
-    });
+  try {
+    if (this.isNew || this.isModified('isPublished') || this.isModified('courseId')) {
+      const Course = mongoose.model('Course');
+      const Module = mongoose.model('Module');
+      const count = await Module.countDocuments({ courseId: this.courseId, isPublished: true });
+      await Course.findByIdAndUpdate(this.courseId, { totalModules: Math.max(0, count) });
+    }
+    next();
+  } catch (e) {
+    next(e);
   }
-  next();
 });
 
 // Method to add content to module

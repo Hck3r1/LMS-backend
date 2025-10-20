@@ -200,13 +200,17 @@ assignmentSchema.index({ type: 1 });
 
 // Middleware to update course assignment count
 assignmentSchema.pre('save', async function(next) {
-  if (this.isNew || this.isModified('isPublished')) {
-    const Course = mongoose.model('Course');
-    await Course.findByIdAndUpdate(this.courseId, {
-      $inc: { totalAssignments: this.isPublished ? 1 : -1 }
-    });
+  try {
+    if (this.isNew || this.isModified('isPublished') || this.isModified('courseId')) {
+      const Course = mongoose.model('Course');
+      const Assignment = mongoose.model('Assignment');
+      const count = await Assignment.countDocuments({ courseId: this.courseId, isPublished: true });
+      await Course.findByIdAndUpdate(this.courseId, { totalAssignments: Math.max(0, count) });
+    }
+    next();
+  } catch (e) {
+    next(e);
   }
-  next();
 });
 
 // Method to calculate average score

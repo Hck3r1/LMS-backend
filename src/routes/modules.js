@@ -16,21 +16,17 @@ router.get('/course/:courseId', protect, checkEnrollment, async (req, res) => {
   try {
     // Students: only published; Instructors/Admins: all
     const course = req.course; // set by checkEnrollment
-    const isInstructor = course.instructor.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === 'admin';
     const baseFilter = { courseId: req.params.courseId };
-    const filter = (isInstructor || isAdmin)
-      ? baseFilter
-      : { ...baseFilter, isPublished: true };
+    // All enrolled users (including students) can view all modules for the course
+    const filter = baseFilter;
 
+    // Always include content in response; avoid projecting it away
     const modules = await Module.find(filter)
       .sort({ order: 1 })
+      .select('+content')
       .populate('assignments', 'title dueDate maxPoints status');
 
-    res.json({
-      success: true,
-      data: { modules }
-    });
+    res.json({ success: true, data: { modules } });
   } catch (error) {
     console.error('Get modules error:', error);
     res.status(500).json({

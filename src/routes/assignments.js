@@ -40,14 +40,13 @@ router.get('/module/:moduleId', protect, async (req, res) => {
     }
 
     // Students: only published; Instructors/Admins: all
-    const assignments = (isInstructor || isAdmin)
-      ? await Assignment.find({ moduleId: req.params.moduleId }).sort({ dueDate: 1 }).populate('moduleId', 'title').populate('courseId', 'title')
-      : await Assignment.getModuleAssignments(req.params.moduleId);
+    // All enrolled users (including students) can view all assignments for the module
+    const assignments = await Assignment.find({ moduleId: req.params.moduleId })
+      .sort({ dueDate: 1 })
+      .populate('moduleId', 'title')
+      .populate('courseId', 'title');
 
-    res.json({
-      success: true,
-      data: { assignments }
-    });
+    res.json({ success: true, data: { assignments } });
   } catch (error) {
     console.error('Get assignments error:', error);
     res.status(500).json({
