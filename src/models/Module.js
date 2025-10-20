@@ -166,12 +166,14 @@ const moduleSchema = new mongoose.Schema({
 
 // Virtual for total content duration
 moduleSchema.virtual('totalDuration').get(function() {
-  return this.content.reduce((total, item) => total + (item.duration || 0), 0);
+  const items = Array.isArray(this.content) ? this.content : [];
+  return items.reduce((total, item) => total + (item.duration || 0), 0);
 });
 
 // Virtual for required content count
 moduleSchema.virtual('requiredContentCount').get(function() {
-  return this.content.filter(item => item.isRequired).length;
+  const items = Array.isArray(this.content) ? this.content : [];
+  return items.filter(item => item.isRequired).length;
 });
 
 // Virtual for completion rate
