@@ -22,8 +22,35 @@ router.get('/course/:courseId', protect, authorize('student', 'admin'), async (r
       });
     }
 
-    const isEnrolled = course.enrolledStudents.includes(studentId) || 
-                      req.user.enrolledCourses?.some(c => c.id === courseId || c._id === courseId);
+    // Check enrollment using the same logic as auth middleware
+    console.log('Checking enrollment for student:', studentId, 'in course:', courseId);
+    console.log('Course enrolledStudents:', course.enrolledStudents);
+    console.log('User enrolledCourses:', req.user.enrolledCourses);
+    
+    // Check if user is enrolled in course document (new format)
+    const isEnrolledInCourseDoc = Array.isArray(course.enrolledStudents) &&
+      course.enrolledStudents.some(e => e.student && e.student.toString() === studentId.toString());
+    
+    // Check if user is enrolled in course document (old format)
+    const isEnrolledInCourseDocOld = Array.isArray(course.enrolledStudents) &&
+      course.enrolledStudents.includes(studentId);
+    
+    // Fallback: check user.enrolledCourses if course doc is not yet updated
+    let isEnrolledViaUserDoc = false;
+    try {
+      const freshUser = await User.findById(studentId).select('enrolledCourses');
+      isEnrolledViaUserDoc = Array.isArray(freshUser?.enrolledCourses) && freshUser.enrolledCourses
+        .some(c => c && c.toString() === courseId.toString());
+    } catch (err) {
+      console.log('Error checking user enrollment:', err.message);
+    }
+    
+    const isEnrolled = isEnrolledInCourseDoc || isEnrolledInCourseDocOld || isEnrolledViaUserDoc;
+    
+    console.log('Enrolled in course (new format):', isEnrolledInCourseDoc);
+    console.log('Enrolled in course (old format):', isEnrolledInCourseDocOld);
+    console.log('Enrolled via user doc:', isEnrolledViaUserDoc);
+    console.log('Final enrollment status:', isEnrolled);
     
     if (!isEnrolled) {
       return res.status(403).json({
@@ -175,8 +202,35 @@ router.post('/complete-module', protect, authorize('student', 'admin'), async (r
       });
     }
 
-    const isEnrolled = course.enrolledStudents.includes(studentId) || 
-                      req.user.enrolledCourses?.some(c => c.id === courseId || c._id === courseId);
+    // Check enrollment using the same logic as auth middleware
+    console.log('Checking enrollment for student:', studentId, 'in course:', courseId);
+    console.log('Course enrolledStudents:', course.enrolledStudents);
+    console.log('User enrolledCourses:', req.user.enrolledCourses);
+    
+    // Check if user is enrolled in course document (new format)
+    const isEnrolledInCourseDoc = Array.isArray(course.enrolledStudents) &&
+      course.enrolledStudents.some(e => e.student && e.student.toString() === studentId.toString());
+    
+    // Check if user is enrolled in course document (old format)
+    const isEnrolledInCourseDocOld = Array.isArray(course.enrolledStudents) &&
+      course.enrolledStudents.includes(studentId);
+    
+    // Fallback: check user.enrolledCourses if course doc is not yet updated
+    let isEnrolledViaUserDoc = false;
+    try {
+      const freshUser = await User.findById(studentId).select('enrolledCourses');
+      isEnrolledViaUserDoc = Array.isArray(freshUser?.enrolledCourses) && freshUser.enrolledCourses
+        .some(c => c && c.toString() === courseId.toString());
+    } catch (err) {
+      console.log('Error checking user enrollment:', err.message);
+    }
+    
+    const isEnrolled = isEnrolledInCourseDoc || isEnrolledInCourseDocOld || isEnrolledViaUserDoc;
+    
+    console.log('Enrolled in course (new format):', isEnrolledInCourseDoc);
+    console.log('Enrolled in course (old format):', isEnrolledInCourseDocOld);
+    console.log('Enrolled via user doc:', isEnrolledViaUserDoc);
+    console.log('Final enrollment status:', isEnrolled);
     
     if (!isEnrolled) {
       return res.status(403).json({
