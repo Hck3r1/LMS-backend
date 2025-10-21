@@ -36,7 +36,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration with support for localhost, tunnels (ngrok/grok), and Render
+// Enhanced CORS configuration for Render deployment
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:3000',
@@ -46,27 +46,69 @@ const allowedOrigins = [
   'https://localhost:3001',
   'https://localhost:3002',
   'https://lms-backend-u90k.onrender.com',
-  'https://mic-lms.vercel.app'
+  'https://mic-lms.vercel.app',
+  'https://mic-lms-git-main-0xhckrrr.vercel.app', // Vercel preview URLs
+  'https://mic-lms-git-develop-0xhckrrr.vercel.app'
 ].filter(Boolean);
 
-app.use(cors({
+// CORS options with comprehensive configuration
+const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser requests or same-origin
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      console.log('✅ CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
 
+    // Check if origin is in allowed list
     const isAllowedList = allowedOrigins.includes(origin);
+    
+    // Check for development tunnels
     const isNgrok = /\.ngrok-free\.app$/i.test(origin) || /\.ngrok\.io$/i.test(origin);
     const isGrok = /\.grok$/i.test(origin) || /\.trycloudflare\.com$/i.test(origin);
     const isRender = /\.onrender\.com$/i.test(origin);
+    const isVercel = /\.vercel\.app$/i.test(origin) || /\.vercel\.dev$/i.test(origin);
+    const isNetlify = /\.netlify\.app$/i.test(origin) || /\.netlify\.dev$/i.test(origin);
+    
+    // Check for localhost variations
+    const isLocalhost = /^https?:\/\/localhost(:\d+)?$/i.test(origin) || 
+                      /^https?:\/\/127\.0\.0\.1(:\d+)?$/i.test(origin) ||
+                      /^https?:\/\/0\.0\.0\.0(:\d+)?$/i.test(origin);
 
-    if (isAllowedList || isNgrok || isGrok || isRender) {
+    const isAllowed = isAllowedList || isNgrok || isGrok || isRender || isVercel || isNetlify || isLocalhost;
+
+    if (isAllowed) {
+      console.log(`✅ CORS: Allowing origin: ${origin}`);
       return callback(null, true);
+    } else {
+      console.log(`❌ CORS: Blocking origin: ${origin}`);
+      console.log('📋 Allowed origins:', allowedOrigins);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
     }
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
-  optionsSuccessStatus: 204
-}));
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control',
+    'Pragma'
+  ],
+  exposedHeaders: [
+    'X-Total-Count',
+    'X-Page-Count',
+    'X-Current-Page'
+  ]
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -112,19 +154,57 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/progress', progressRoutes);
 
-// Health check endpoint
+// Health check endpoint with CORS status
 app.get('/api/health', (req, res) => {
-        res.json({
-          status: 'OK',
-          message: 'MIC Oyo State LMS Backend is running!',
-          timestamp: new Date().toISOString()
-        });
+  const origin = req.get('Origin');
+  const isCorsAllowed = !origin || corsOptions.origin(origin, () => true);
+  
+  res.json({
+    status: 'OK',
+    message: 'MIC Oyo State LMS Backend is running!',
+    timestamp: new Date().toISOString(),
+    cors: {
+      origin: origin,
+      allowed: isCorsAllowed,
+      allowedOrigins: allowedOrigins
+    }
+  });
 });
 
-// Error handling middleware
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CORS is working correctly!',
+    origin: req.get('Origin'),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// CORS error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  if (err.message && err.message.includes('CORS')) {
+    console.error('🚫 CORS Error:', err.message);
+    console.error('🌐 Request Origin:', req.get('Origin'));
+    console.error('🔗 Request URL:', req.url);
+    console.error('📋 Request Headers:', req.headers);
+    
+    return res.status(403).json({
+      success: false,
+      message: 'CORS Error: Origin not allowed',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Origin not allowed',
+      origin: req.get('Origin'),
+      allowedOrigins: allowedOrigins
+    });
+  }
+  next(err);
+});
+
+// General error handling middleware
+app.use((err, req, res, next) => {
+  console.error('❌ Server Error:', err.stack);
   res.status(500).json({ 
+    success: false,
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : {}
   });
@@ -142,9 +222,12 @@ const { initSocket } = require('./utils/socket');
 const { startDueSoonReminderScheduler } = require('./utils/reminders');
 initSocket(server);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 MIC Oyo State LMS Server running on port ${PORT}`);
         console.log(`📚 MIC Oyo State LMS Backend API ready at http://localhost:${PORT}`);
+        console.log(`🌐 CORS configured for origins: ${allowedOrigins.join(', ')}`);
+        console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`☁️  Render deployment: ${process.env.RENDER ? 'Yes' : 'No'}`);
         // Start schedulers
         startDueSoonReminderScheduler();
 });
