@@ -38,9 +38,10 @@ const router = express.Router();
 router.post('/', [
   protect,
   authorize('student', 'admin'),
+  uploadAssignmentFiles,
   body('assignmentId').notEmpty().withMessage('Assignment ID is required').isMongoId().withMessage('Valid assignment ID is required'),
   body('textSubmission').optional().isLength({ max: 10000 }).withMessage('Text submission cannot exceed 10000 characters')
-], uploadAssignmentFiles, async (req, res) => {
+], async (req, res) => {
   try {
     // Debug logging
     console.log('📝 Submission request received:');
