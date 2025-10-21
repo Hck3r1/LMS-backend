@@ -127,7 +127,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Logging middleware
 app.use(morgan('combined'));
 
-// Static file serving for uploads
+// Static file serving for local uploads (fallback)
 app.use('/uploads', express.static('uploads'));
 
 // Swagger Documentation

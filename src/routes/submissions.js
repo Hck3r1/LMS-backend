@@ -114,6 +114,17 @@ router.post('/', [
 
     // Add uploaded files if any
     if (req.uploadedFiles && req.uploadedFiles.length > 0) {
+      // Check for upload errors
+      const failedUploads = req.uploadedFiles.filter(file => !file.url || file.error);
+      if (failedUploads.length > 0) {
+        console.error('Some files failed to upload:', failedUploads);
+        return res.status(400).json({
+          success: false,
+          message: 'Some files failed to upload. Please try again.',
+          failedFiles: failedUploads.map(f => f.originalName)
+        });
+      }
+
       submissionData.files = req.uploadedFiles.map(file => ({
         filename: file.filename,
         originalName: file.originalName,

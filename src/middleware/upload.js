@@ -1,5 +1,6 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary
@@ -9,9 +10,22 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Configure multer for local storage (fallback)
+// Ensure uploads directory exists
+const ensureUploadsDir = () => {
+  const uploadsDir = 'uploads';
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('📁 Created uploads directory');
+  }
+};
+
+// Initialize uploads directory
+ensureUploadsDir();
+
+// Configure multer for disk storage (local fallback)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    ensureUploadsDir(); // Ensure directory exists before saving
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
@@ -55,15 +69,45 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// Upload to Cloudinary
+// Upload to Cloudinary (primary) with local fallback
 const uploadToCloudinary = async (file, folder = 'lms') => {
   try {
+    // Check if Cloudinary is configured
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.log('⚠️ Cloudinary not configured, using local storage fallback');
+      return {
+        success: false,
+        error: 'Cloudinary not configured',
+        useLocal: true
+      };
+    }
+
+    // Check if file exists before uploading
+    if (!fs.existsSync(file.path)) {
+      console.error('File not found:', file.path);
+      return {
+        success: false,
+        error: 'File not found on server',
+        useLocal: true
+      };
+    }
+
     const result = await cloudinary.uploader.upload(file.path, {
       folder: folder,
       resource_type: 'auto',
       quality: 'auto',
       fetch_format: 'auto'
     });
+    
+    // Clean up local file after successful upload
+    try {
+      fs.unlinkSync(file.path);
+      console.log('🗑️ Cleaned up local file:', file.path);
+    } catch (cleanupError) {
+      console.warn('⚠️ Could not clean up local file:', cleanupError.message);
+    }
+    
+    console.log('☁️ File uploaded to Cloudinary:', result.public_id);
     
     return {
       success: true,
@@ -76,7 +120,8 @@ const uploadToCloudinary = async (file, folder = 'lms') => {
     console.error('Cloudinary upload error:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
+      useLocal: true
     };
   }
 };
@@ -110,7 +155,8 @@ const uploadMultiple = (fieldName, maxCount = 5) => {
               fileSize: result.bytes
             };
           } else {
-            // Fallback to local storage if Cloudinary fails
+            // Cloudinary failed, use local storage fallback
+            console.log('📁 Using local storage fallback for:', file.originalname);
             return {
               filename: file.filename,
               originalName: file.originalname,
@@ -162,7 +208,8 @@ const uploadSingle = (fieldName) => {
             fileSize: result.bytes
           };
         } else {
-          // Fallback to local storage
+          // Cloudinary failed, use local storage fallback
+          console.log('📁 Using local storage fallback for:', req.file.originalname);
           req.uploadedFile = {
             filename: req.file.filename,
             originalName: req.file.originalname,
