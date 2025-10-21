@@ -38,12 +38,25 @@ const router = express.Router();
 router.post('/', [
   protect,
   authorize('student', 'admin'),
-  body('assignmentId').isMongoId().withMessage('Valid assignment ID is required'),
+  body('assignmentId').notEmpty().withMessage('Assignment ID is required').isMongoId().withMessage('Valid assignment ID is required'),
   body('textSubmission').optional().isLength({ max: 10000 }).withMessage('Text submission cannot exceed 10000 characters')
 ], uploadAssignmentFiles, async (req, res) => {
   try {
+    // Debug logging
+    console.log('📝 Submission request received:');
+    console.log('Body:', req.body);
+    console.log('Files:', req.files);
+    console.log('AssignmentId from body:', req.body.assignmentId);
+    console.log('AssignmentId type:', typeof req.body.assignmentId);
+    
+    // Manual validation check
+    const mongoose = require('mongoose');
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(req.body.assignmentId);
+    console.log('Is valid ObjectId:', isValidObjectId);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
