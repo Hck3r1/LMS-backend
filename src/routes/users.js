@@ -6,6 +6,50 @@ const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
+// @desc    Search users
+// @route   GET /api/users/search
+// @access  Private
+router.get('/search', protect, async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const users = await User.find({
+      $and: [
+        { _id: { $ne: req.user._id } }, // Exclude current user
+        { isActive: true },
+        {
+          $or: [
+            { firstName: { $regex: q, $options: 'i' } },
+            { lastName: { $regex: q, $options: 'i' } },
+            { email: { $regex: q, $options: 'i' } }
+          ]
+        }
+      ]
+    })
+    .select('firstName lastName email avatar role')
+    .limit(10)
+    .sort({ firstName: 1 });
+
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error searching users'
+    });
+  }
+});
+
 // @desc    Get all tutors
 // @route   GET /api/users/tutors
 // @access  Public
