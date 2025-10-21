@@ -175,7 +175,8 @@ const assignmentSchema = new mongoose.Schema({
 
 // Virtual for submission count
 assignmentSchema.virtual('submissionCount').get(function() {
-  return this.submissions.length;
+  const subs = Array.isArray(this.submissions) ? this.submissions : [];
+  return subs.length;
 });
 
 // Virtual for days until due

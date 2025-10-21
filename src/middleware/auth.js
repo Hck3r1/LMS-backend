@@ -170,10 +170,17 @@ const checkEnrollment = async (req, res, next) => {
     }
 
     // Check if user is enrolled or is the instructor or admin
-    const isEnrolled = course.enrolledStudents.some(
-      enrollment => enrollment.student.toString() === req.user._id.toString()
-    );
-    
+    const isEnrolledInCourseDoc = Array.isArray(course.enrolledStudents) &&
+      course.enrolledStudents.some(e => e.student && e.student.toString() === req.user._id.toString());
+
+    // Fallback: check user.enrolledCourses if course doc is not yet updated
+    let isEnrolledViaUserDoc = false;
+    try {
+      const freshUser = await User.findById(req.user._id).select('enrolledCourses');
+      isEnrolledViaUserDoc = Array.isArray(freshUser?.enrolledCourses) && freshUser.enrolledCourses
+        .some(c => c && c.toString() === courseId.toString());
+    } catch (_) {}
+
     const isInstructor = course.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
 
@@ -181,14 +188,15 @@ const checkEnrollment = async (req, res, next) => {
       userId: req.user._id.toString(),
       userRole: req.user.role,
       courseId: courseId,
-      enrolledStudents: course.enrolledStudents.map(e => e.student.toString()),
+      enrolledStudents: (course.enrolledStudents || []).map(e => (e.student || '').toString()),
       instructor: course.instructor.toString(),
-      isEnrolled,
+      isEnrolledInCourseDoc,
+      isEnrolledViaUserDoc,
       isInstructor,
       isAdmin
     });
 
-    if (!isEnrolled && !isInstructor && !isAdmin) {
+    if (!isEnrolledInCourseDoc && !isEnrolledViaUserDoc && !isInstructor && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'You must be enrolled in this course to access this content'
