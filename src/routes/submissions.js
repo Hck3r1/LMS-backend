@@ -79,6 +79,13 @@ router.post('/', [
       });
     }
 
+    // Debug: Log assignment details
+    console.log('📋 Assignment details:');
+    console.log('Title:', assignment.title);
+    console.log('isPublished:', assignment.isPublished);
+    console.log('Type:', assignment.type);
+    console.log('Due Date:', assignment.dueDate);
+
     if (!assignment.isPublished) {
       return res.status(400).json({
         success: false,

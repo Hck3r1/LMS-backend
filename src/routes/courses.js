@@ -525,6 +525,36 @@ router.put('/:id', [
       { new: true, runValidators: true }
     );
 
+    // Auto-publish modules and assignments when course is published
+    if (req.body.isPublished === true && !course.isPublished) {
+      console.log('🚀 Course published, auto-publishing modules and assignments...');
+      
+      try {
+        // Import models
+        const Module = require('../models/Module');
+        const Assignment = require('../models/Assignment');
+        
+        // Publish all modules in this course
+        const modulesResult = await Module.updateMany(
+          { courseId: req.params.id },
+          { isPublished: true }
+        );
+        console.log(`📚 Published ${modulesResult.modifiedCount} modules`);
+        
+        // Publish all assignments in this course
+        const assignmentsResult = await Assignment.updateMany(
+          { courseId: req.params.id },
+          { isPublished: true }
+        );
+        console.log(`📝 Published ${assignmentsResult.modifiedCount} assignments`);
+        
+        console.log('✅ Auto-publish completed successfully');
+      } catch (autoPublishError) {
+        console.error('⚠️ Auto-publish failed:', autoPublishError);
+        // Don't fail the course update if auto-publish fails
+      }
+    }
+
     res.json({
       success: true,
       message: 'Course updated successfully',
@@ -956,6 +986,76 @@ router.delete('/:id', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error deleting course'
+    });
+  }
+});
+
+// @desc    Publish course
+// @route   PATCH /api/courses/:id/publish
+// @access  Private (Tutor only)
+router.patch('/:id/publish', [
+  protect,
+  authorize('tutor', 'admin')
+], async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    // Check if user is the instructor or admin
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to publish this course'
+      });
+    }
+
+    // Publish the course
+    course.isPublished = true;
+    await course.save();
+
+    // Auto-publish all modules and assignments
+    console.log('🚀 Course published, auto-publishing modules and assignments...');
+    
+    try {
+      // Import models
+      const Module = require('../models/Module');
+      const Assignment = require('../models/Assignment');
+      
+      // Publish all modules in this course
+      const modulesResult = await Module.updateMany(
+        { courseId: req.params.id },
+        { isPublished: true }
+      );
+      console.log(`📚 Published ${modulesResult.modifiedCount} modules`);
+      
+      // Publish all assignments in this course
+      const assignmentsResult = await Assignment.updateMany(
+        { courseId: req.params.id },
+        { isPublished: true }
+      );
+      console.log(`📝 Published ${assignmentsResult.modifiedCount} assignments`);
+      
+      console.log('✅ Auto-publish completed successfully');
+    } catch (autoPublishError) {
+      console.error('⚠️ Auto-publish failed:', autoPublishError);
+      // Don't fail the course publish if auto-publish fails
+    }
+
+    res.json({
+      success: true,
+      message: 'Course published successfully',
+      data: { course }
+    });
+  } catch (error) {
+    console.error('Publish course error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error publishing course'
     });
   }
 });

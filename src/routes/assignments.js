@@ -406,4 +406,46 @@ router.get('/:id/stats', protect, authorize('tutor', 'admin'), async (req, res) 
   }
 });
 
+// @desc    Publish assignment
+// @route   PATCH /api/assignments/:id/publish
+// @access  Private (Tutor only)
+router.patch('/:id/publish', [
+  protect,
+  authorize('tutor', 'admin')
+], async (req, res) => {
+  try {
+    const assignment = await Assignment.findById(req.params.id);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found'
+      });
+    }
+
+    // Verify course ownership
+    const course = await Course.findById(assignment.courseId);
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to publish this assignment'
+      });
+    }
+
+    assignment.isPublished = true;
+    await assignment.save();
+
+    res.json({
+      success: true,
+      message: 'Assignment published successfully',
+      data: { assignment }
+    });
+  } catch (error) {
+    console.error('Publish assignment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error publishing assignment'
+    });
+  }
+});
+
 module.exports = router;
