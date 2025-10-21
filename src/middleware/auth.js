@@ -177,6 +177,17 @@ const checkEnrollment = async (req, res, next) => {
     const isInstructor = course.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
 
+    console.log('🔍 Enrollment check:', {
+      userId: req.user._id.toString(),
+      userRole: req.user.role,
+      courseId: courseId,
+      enrolledStudents: course.enrolledStudents.map(e => e.student.toString()),
+      instructor: course.instructor.toString(),
+      isEnrolled,
+      isInstructor,
+      isAdmin
+    });
+
     if (!isEnrolled && !isInstructor && !isAdmin) {
       return res.status(403).json({
         success: false,

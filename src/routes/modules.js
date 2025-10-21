@@ -29,9 +29,11 @@ router.get('/course/:courseId', protect, checkEnrollment, async (req, res) => {
     res.json({ success: true, data: { modules } });
   } catch (error) {
     console.error('Get modules error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching modules'
+      message: 'Server error fetching modules',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
