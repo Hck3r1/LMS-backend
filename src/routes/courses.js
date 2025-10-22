@@ -520,6 +520,22 @@ router.put('/:id', [
       });
     }
 
+    // Normalize learningObjectives and prerequisites prior to update
+    if (typeof req.body.learningObjectives === 'string') {
+      req.body.learningObjectives = req.body.learningObjectives
+        .split(/\n|,/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+    if (typeof req.body.prerequisites === 'string') {
+      // Frontend may pass free text like 'None'; prerequisites expects ObjectId[] → drop invalid
+      delete req.body.prerequisites;
+    } else if (Array.isArray(req.body.prerequisites)) {
+      const isObjectId = (v) => typeof v === 'string' && /^[a-f\d]{24}$/i.test(v);
+      const filtered = req.body.prerequisites.filter(isObjectId);
+      req.body.prerequisites = filtered;
+    }
+
     const updatedCourse = await Course.findByIdAndUpdate(
       req.params.id,
       req.body,
