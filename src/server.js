@@ -101,13 +101,22 @@ const corsOptions = {
 
 // CORS middleware (adds proper Vary headers and mirrors Origin)
 app.use(cors(corsOptions));
-// Standard preflight handling via cors package (prevents caching issues)
-app.options('*', cors(corsOptions));
 // Ensure proxies/CDNs don't cache CORS across different origins
 app.use((req, res, next) => {
   res.header('Vary', 'Origin');
   res.append('Vary', 'Access-Control-Request-Method');
   res.append('Vary', 'Access-Control-Request-Headers');
+  next();
+});
+// Generic preflight handler without using wildcard path (avoids path-to-regexp issues)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.get('Origin') || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    return res.sendStatus(200);
+  }
   next();
 });
 
