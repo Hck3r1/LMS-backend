@@ -493,6 +493,7 @@ router.put('/:id', [
   // price removed for free LMS
 ], async (req, res) => {
   try {
+    console.log('➡️ Update course request body:', req.body);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -539,18 +540,20 @@ router.put('/:id', [
           { courseId: req.params.id },
           { isPublished: true }
         );
-        console.log(`📚 Published ${modulesResult.modifiedCount} modules`);
+        const modulesModified = typeof modulesResult?.modifiedCount === 'number' ? modulesResult.modifiedCount : (modulesResult?.nModified || 0);
+        console.log(`📚 Published ${modulesModified} modules`);
         
         // Publish all assignments in this course
         const assignmentsResult = await Assignment.updateMany(
           { courseId: req.params.id },
           { isPublished: true }
         );
-        console.log(`📝 Published ${assignmentsResult.modifiedCount} assignments`);
+        const assignmentsModified = typeof assignmentsResult?.modifiedCount === 'number' ? assignmentsResult.modifiedCount : (assignmentsResult?.nModified || 0);
+        console.log(`📝 Published ${assignmentsModified} assignments`);
         
         console.log('✅ Auto-publish completed successfully');
       } catch (autoPublishError) {
-        console.error('⚠️ Auto-publish failed:', autoPublishError);
+        console.error('⚠️ Auto-publish failed:', autoPublishError?.message, autoPublishError?.stack);
         // Don't fail the course update if auto-publish fails
       }
     }
@@ -561,7 +564,7 @@ router.put('/:id', [
       data: { course: updatedCourse }
     });
   } catch (error) {
-    console.error('Update course error:', error);
+    console.error('Update course error:', error?.message, error?.stack);
     res.status(500).json({
       success: false,
       message: 'Server error updating course'
