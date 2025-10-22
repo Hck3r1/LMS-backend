@@ -201,7 +201,8 @@ submissionSchema.virtual('finalGrade').get(function() {
 // Virtual for grade percentage
 submissionSchema.virtual('gradePercentage').get(function() {
   if (!this.grade) return null;
-  return Math.round((this.grade / this.maxPoints) * 100);
+  // this.grade is already stored as percentage (0-100)
+  return Math.round(this.grade);
 });
 
 // Virtual for is graded
@@ -268,8 +269,8 @@ submissionSchema.methods.addComment = function(authorId, content, isPrivate = fa
 };
 
 // Method to update grade
-submissionSchema.methods.updateGrade = function(grade, feedback = null) {
-  this.grade = grade;
+submissionSchema.methods.updateGrade = function(gradePercentage, feedback = null) {
+  this.grade = gradePercentage; // Store as percentage (0-100)
   if (feedback) {
     this.feedback = feedback;
   }
