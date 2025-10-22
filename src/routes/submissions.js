@@ -591,6 +591,42 @@ router.get('/ungraded', protect, authorize('tutor', 'admin'), async (req, res) =
   }
 });
 
+// @desc    Get recent submissions for tutor's courses (graded or ungraded)
+// @route   GET /api/submissions/recent?limit=10
+// @access  Private (Tutor/Admin)
+router.get('/recent', protect, authorize('tutor', 'admin'), async (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit || '10', 10)));
+    // Find submissions for courses owned by this tutor (or all if admin)
+    const filter = {};
+    if (req.user.role !== 'admin') {
+      // We'll filter after populate because courseId is needed
+    }
+
+    const submissions = await Submission.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit * 5) // over-fetch then filter by instructor below
+      .populate('studentId', 'firstName lastName avatar')
+      .populate('assignmentId', 'title')
+      .populate('courseId', 'title instructor')
+      .lean();
+
+    const filtered = req.user.role === 'admin'
+      ? submissions
+      : submissions.filter(s => String(s.courseId?.instructor) === String(req.user._id));
+
+    const limited = filtered.slice(0, limit);
+
+    res.json({
+      success: true,
+      data: { submissions: limited }
+    });
+  } catch (error) {
+    console.error('Get recent submissions error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching recent submissions' });
+  }
+});
+
 /**
  * @swagger
  * /submissions/{id}/status:
