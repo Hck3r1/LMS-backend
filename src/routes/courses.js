@@ -569,6 +569,65 @@ router.put('/:id', [
   }
 });
 
+// @desc    Get full course structure (course + modules + assignments)
+// @route   GET /api/courses/:id/structure
+// @access  Private (Tutor/Admin)
+router.get('/:id/structure', [
+  protect,
+  authorize('tutor', 'admin')
+], async (req, res) => {
+  try {
+    const Course = require('../models/Course');
+    const Module = require('../models/Module');
+    const Assignment = require('../models/Assignment');
+
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+
+    // Ownership check
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this course structure' });
+    }
+
+    // Fetch all modules with content (include unpublished)
+    const modules = await Module.find({ courseId: req.params.id })
+      .select('+content')
+      .sort({ order: 1, createdAt: 1 })
+      .lean();
+
+    const moduleIds = modules.map(m => m._id);
+    // Fetch all assignments for these modules (include unpublished)
+    const assignments = await Assignment.find({ moduleId: { $in: moduleIds } })
+      .sort({ dueDate: 1, createdAt: 1 })
+      .lean();
+
+    const assignmentsByModuleId = assignments.reduce((acc, a) => {
+      const key = String(a.moduleId);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(a);
+      return acc;
+    }, {});
+
+    const modulesWithAssignments = modules.map(m => ({
+      ...m,
+      assignments: assignmentsByModuleId[String(m._id)] || []
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        course,
+        modules: modulesWithAssignments
+      }
+    });
+  } catch (error) {
+    console.error('Get course structure error:', error);
+    return res.status(500).json({ success: false, message: 'Server error fetching course structure' });
+  }
+});
+
 /**
  * @swagger
  * /courses/{id}/thumbnail:
