@@ -216,6 +216,7 @@ router.post('/', [
  *       200:
  *         description: List of submissions
  */
+// Get submissions for an assignment (tutors/admins only)
 router.get('/assignment/:assignmentId', protect, authorize('tutor', 'admin'), async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.assignmentId)
@@ -247,6 +248,53 @@ router.get('/assignment/:assignmentId', protect, authorize('tutor', 'admin'), as
     res.status(500).json({
       success: false,
       message: 'Server error fetching submissions'
+    });
+  }
+});
+
+// Get student's own submissions for an assignment
+router.get('/assignment/:assignmentId/student', protect, authorize('student', 'admin'), async (req, res) => {
+  try {
+    const assignment = await Assignment.findById(req.params.assignmentId)
+      .populate('courseId', 'instructor enrolledStudents');
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found'
+      });
+    }
+
+    // Check if student is enrolled in the course
+    const isEnrolled = assignment.courseId.enrolledStudents.some(
+      enrollment => enrollment.student.toString() === req.user._id.toString()
+    );
+
+    if (!isEnrolled && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be enrolled in this course to view your submissions'
+      });
+    }
+
+    // Get student's submissions for this assignment
+    const submissions = await Submission.find({
+      assignmentId: req.params.assignmentId,
+      studentId: req.user._id
+    })
+    .sort({ createdAt: -1 }) // Most recent first
+    .populate('assignmentId', 'title maxPoints')
+    .populate('courseId', 'title');
+
+    res.json({
+      success: true,
+      data: { submissions }
+    });
+  } catch (error) {
+    console.error('Get student submissions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching student submissions'
     });
   }
 });
