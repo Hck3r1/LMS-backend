@@ -11,6 +11,58 @@ const { sendEmail, assignmentDueSoonTemplate, assignmentCreatedTemplate } = requ
 
 const router = express.Router();
 
+// @desc    Get assignments for a course
+// @route   GET /api/assignments/course/:courseId
+// @access  Private (Enrolled students, tutors, admins)
+router.get('/course/:courseId', protect, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    // Check enrollment for students
+    if (req.user.role === 'student') {
+      const isEnrolled = course.enrolledStudents.some(
+        enrollment => enrollment.student.toString() === req.user._id.toString()
+      );
+      
+      if (!isEnrolled) {
+        return res.status(403).json({
+          success: false,
+          message: 'You must be enrolled in this course to view assignments'
+        });
+      }
+    }
+
+    // Get all modules for the course
+    const modules = await Module.find({ courseId: req.params.courseId });
+    const moduleIds = modules.map(m => m._id);
+
+    // Get all assignments for these modules
+    const assignments = await Assignment.find({ 
+      moduleId: { $in: moduleIds },
+      isPublished: true 
+    })
+    .populate('moduleId', 'title order')
+    .sort({ createdAt: 1 });
+
+    res.json({
+      success: true,
+      data: { assignments }
+    });
+  } catch (error) {
+    console.error('Get course assignments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching course assignments'
+    });
+  }
+});
+
 // @desc    Get assignments for a module
 // @route   GET /api/assignments/module/:moduleId
 // @access  Private (Enrolled students, tutors, admins)
