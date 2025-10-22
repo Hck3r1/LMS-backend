@@ -332,9 +332,9 @@ router.get('/:id', protect, async (req, res) => {
       });
     }
 
-    // Check permissions
-    const isOwner = submission.studentId._id.toString() === req.user._id.toString();
-    const isInstructor = submission.courseId.instructor.toString() === req.user._id.toString();
+    // Check permissions (null-safe)
+    const isOwner = submission?.studentId && submission.studentId._id && submission.studentId._id.toString() === req.user._id.toString();
+    const isInstructor = submission?.courseId && submission.courseId.instructor && submission.courseId.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
 
     if (!isOwner && !isInstructor && !isAdmin) {
@@ -349,7 +349,7 @@ router.get('/:id', protect, async (req, res) => {
       data: { submission }
     });
   } catch (error) {
-    console.error('Get submission error:', error);
+    console.error('Get submission error:', error?.message, error?.stack);
     res.status(500).json({
       success: false,
       message: 'Server error fetching submission'
