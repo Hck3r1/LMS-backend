@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 const { swaggerUi, specs } = require('./config/swagger');
 require('dotenv').config();
 
@@ -29,12 +28,7 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// Rate limiting disabled for office LMS - no restrictions needed
 
 // Enhanced CORS configuration for Render deployment
 const allowedOrigins = [
