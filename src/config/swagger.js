@@ -23,7 +23,7 @@ const options = {
         description: 'Production server (Render)'
       },
       {
-        url: process.env.API_URL || 'http://localhost:5000/api',
+        url: process.env.API_URL || 'http://localhost:5001/api',
         description: 'Development server'
       }
     ],

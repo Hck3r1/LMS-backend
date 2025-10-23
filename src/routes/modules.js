@@ -150,6 +150,37 @@ router.post('/', [
         courseId: course._id,
         moduleId: module._id
       }));
+
+      // Send email notifications to enrolled students
+      try {
+        const User = require('../models/User');
+        const { sendEmail } = require('../utils/email');
+        const students = await User.find({ _id: { $in: enrolled.map(s => s.student) } }).select('email firstName').lean();
+        for (const s of students) {
+          if (!s.email) continue;
+          const moduleEmail = {
+            to: s.email,
+            subject: `New module added to ${course.title}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2c3e50;">📚 New Module Added</h2>
+                <p>Hello ${s.firstName || 'Student'},</p>
+                <p>A new module <strong>"${title}"</strong> has been added to <strong>${course.title}</strong>.</p>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                  <p style="margin: 0;"><strong>Module:</strong> ${title}</p>
+                  <p style="margin: 5px 0 0 0;"><strong>Course:</strong> ${course.title}</p>
+                </div>
+                <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}" style="background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Course</a></p>
+              </div>
+            `,
+            text: `New module added to ${course.title}\n\nModule: ${title}\nCourse: ${course.title}\n\nView at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}`
+          };
+          await sendEmail(moduleEmail);
+        }
+        console.log('📧 Module creation emails sent to', students.length, 'students');
+      } catch (e) {
+        console.warn('Email module creation failed:', e.message);
+      }
     }
 
     res.status(201).json({
@@ -376,6 +407,36 @@ router.put('/:id', [
           courseId: course._id,
           moduleId: updatedModule._id
         }));
+
+        // Send email notifications for module publishing
+        try {
+          const User = require('../models/User');
+          const { sendEmail } = require('../utils/email');
+          const students = await User.find({ _id: { $in: enrolled.map(s => s.student) } }).select('email firstName').lean();
+          for (const s of students) {
+            if (!s.email) continue;
+            const publishEmail = {
+              to: s.email,
+              subject: `Module published: ${updatedModule.title}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #2c3e50;">🎉 Module Published!</h2>
+                  <p>Hello ${s.firstName || 'Student'},</p>
+                  <p>The module <strong>"${updatedModule.title}"</strong> is now available in <strong>${course.title}</strong>.</p>
+                  <div style="background-color: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #28a745;">
+                    <p style="margin: 0; color: #155724;"><strong>✅ Module is now live and ready to access!</strong></p>
+                  </div>
+                  <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}" style="background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Start Learning</a></p>
+                </div>
+              `,
+              text: `Module published: ${updatedModule.title}\n\nCourse: ${course.title}\n\nThe module is now live and ready to access!\n\nStart learning at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}`
+            };
+            await sendEmail(publishEmail);
+          }
+          console.log('📧 Module publishing emails sent to', students.length, 'students');
+        } catch (e) {
+          console.warn('Email module publishing failed:', e.message);
+        }
       }
     }
   } catch (error) {

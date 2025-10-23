@@ -1,10 +1,10 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 
-const smtpHost = process.env.SMTP_HOST;
-const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
+const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST;
+const smtpPort = parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || '587');
+const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER;
+const smtpPass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
 const fromEmail = process.env.EMAIL_FROM || 'no-reply@mic-lms.local';
 
 let transporter;

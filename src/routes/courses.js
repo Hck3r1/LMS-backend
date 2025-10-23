@@ -416,7 +416,7 @@ router.post('/', [
     });
 
     // Announce new course to students of this specialization (optional scope)
-    const interestedStudents = await User.find({ role: 'student', specialization: course.category }).select('_id');
+    const interestedStudents = await User.find({ role: 'student', specialization: course.category }).select('_id email firstName');
     if (interestedStudents.length) {
       const notifications = interestedStudents.map(s => ({
         userId: s._id,
@@ -434,6 +434,38 @@ router.post('/', [
         body: `${course.title} is now available.`,
         courseId: course._id
       }));
+
+      // Send email notifications for new course
+      try {
+        const { sendEmail } = require('../utils/email');
+        for (const s of interestedStudents) {
+          if (!s.email) continue;
+          const courseEmail = {
+            to: s.email,
+            subject: `New course available: ${course.title}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2c3e50;">🎓 New Course Available!</h2>
+                <p>Hello ${s.firstName || 'Student'},</p>
+                <p>A new course in your specialization is now available!</p>
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #2c3e50;">${course.title}</h3>
+                  <p style="margin: 10px 0;"><strong>Category:</strong> ${course.category}</p>
+                  <p style="margin: 10px 0;"><strong>Difficulty:</strong> ${course.difficulty}</p>
+                  <p style="margin: 10px 0;"><strong>Duration:</strong> ${course.duration} hours</p>
+                  <p style="margin: 10px 0 0 0;">${course.description}</p>
+                </div>
+                <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Enroll Now</a></p>
+              </div>
+            `,
+            text: `New course available: ${course.title}\n\nCategory: ${course.category}\nDifficulty: ${course.difficulty}\nDuration: ${course.duration} hours\n\n${course.description}\n\nEnroll at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}`
+          };
+          await sendEmail(courseEmail);
+        }
+        console.log('📧 Course announcement emails sent to', interestedStudents.length, 'students');
+      } catch (e) {
+        console.warn('Email course announcement failed:', e.message);
+      }
     }
   } catch (error) {
     console.error('Create course error:', error);
@@ -885,8 +917,70 @@ router.post('/:id/enroll', [
         link: notif.link,
         courseId: course._id
       });
+
+      // Send email notification to instructor
+      try {
+        const { sendEmail } = require('../utils/email');
+        const instructor = await require('../models/User').findById(course.instructor);
+        if (instructor?.email) {
+          const enrollmentEmail = {
+            to: instructor.email,
+            subject: `New student enrolled in ${course.title}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2c3e50;">🎓 New Student Enrollment</h2>
+                <p>Hello ${instructor.firstName || 'Instructor'},</p>
+                <p>A new student has enrolled in your course!</p>
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #2c3e50;">${course.title}</h3>
+                  <p style="margin: 10px 0;"><strong>New Student:</strong> ${req.user.firstName || 'Student'} ${req.user.lastName || ''}</p>
+                  <p style="margin: 10px 0;"><strong>Email:</strong> ${req.user.email}</p>
+                  <p style="margin: 10px 0;"><strong>Enrollment Date:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+                <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/tutor/courses/${course._id}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Course Dashboard</a></p>
+              </div>
+            `,
+            text: `New student enrolled in ${course.title}\n\nStudent: ${req.user.firstName || 'Student'} ${req.user.lastName || ''}\nEmail: ${req.user.email}\nEnrollment Date: ${new Date().toLocaleDateString()}\n\nView course dashboard at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/tutor/courses/${course._id}`
+          };
+          await sendEmail(enrollmentEmail);
+          console.log('📧 Enrollment email sent to instructor:', instructor.email);
+        }
+      } catch (e) {
+        console.warn('Email enrollment notification failed:', e.message);
+      }
     } catch (e) {
       console.error('Notify instructor enrollment error:', e);
+    }
+
+    // Send welcome email to student
+    try {
+      const { sendEmail } = require('../utils/email');
+      const welcomeEmail = {
+        to: req.user.email,
+        subject: `Welcome to ${course.title}!`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2c3e50;">🎉 Welcome to Your New Course!</h2>
+            <p>Hello ${req.user.firstName || 'Student'},</p>
+            <p>Congratulations! You have successfully enrolled in <strong>${course.title}</strong>.</p>
+            <div style="background-color: #e8f5e8; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #28a745;">
+              <h3 style="margin-top: 0; color: #155724;">Course Details</h3>
+              <p style="margin: 10px 0;"><strong>Course:</strong> ${course.title}</p>
+              <p style="margin: 10px 0;"><strong>Difficulty:</strong> ${course.difficulty}</p>
+              <p style="margin: 10px 0;"><strong>Duration:</strong> ${course.duration} hours</p>
+              <p style="margin: 10px 0 0 0;"><strong>Description:</strong> ${course.description}</p>
+            </div>
+            <p>You can now access all course materials, assignments, and track your progress.</p>
+            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Start Learning Now</a></p>
+            <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">Happy learning! 🚀</p>
+          </div>
+        `,
+        text: `Welcome to ${course.title}!\n\nHello ${req.user.firstName || 'Student'},\n\nCongratulations! You have successfully enrolled in ${course.title}.\n\nCourse Details:\n- Course: ${course.title}\n- Difficulty: ${course.difficulty}\n- Duration: ${course.duration} hours\n- Description: ${course.description}\n\nYou can now access all course materials, assignments, and track your progress.\n\nStart learning at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}\n\nHappy learning! 🚀`
+      };
+      await sendEmail(welcomeEmail);
+      console.log('📧 Welcome email sent to student:', req.user.email);
+    } catch (e) {
+      console.warn('Email welcome notification failed:', e.message);
     }
 
     res.json({

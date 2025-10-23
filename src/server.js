@@ -181,6 +181,57 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Email test endpoint
+app.get('/api/test-email', async (req, res) => {
+  try {
+    const { sendEmail } = require('./utils/email');
+    
+    const testEmail = {
+      to: req.query.to || 'test@example.com',
+      subject: 'LMS Email Test',
+      html: `
+        <h2>🎉 Email Test Successful!</h2>
+        <p>This is a test email from your MIC LMS Backend.</p>
+        <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Environment:</strong> ${process.env.NODE_ENV || 'development'}</p>
+        <hr>
+        <p><em>If you received this email, your SMTP configuration is working correctly!</em></p>
+      `,
+      text: `Email Test Successful!\n\nThis is a test email from your MIC LMS Backend.\nTimestamp: ${new Date().toISOString()}\nEnvironment: ${process.env.NODE_ENV || 'development'}\n\nIf you received this email, your SMTP configuration is working correctly!`
+    };
+
+    const result = await sendEmail(testEmail);
+    
+    if (result.skipped) {
+      return res.json({
+        success: false,
+        message: 'Email transporter not configured. Check your SMTP environment variables.',
+        config: {
+          SMTP_HOST: process.env.SMTP_HOST,
+          SMTP_PORT: process.env.SMTP_PORT,
+          SMTP_USER: process.env.SMTP_USER,
+          EMAIL_FROM: process.env.EMAIL_FROM,
+          hasPassword: !!process.env.SMTP_PASS
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Test email sent successfully!',
+      recipient: testEmail.to,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Email test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send test email',
+      error: error.message
+    });
+  }
+});
+
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {
   res.json({
@@ -225,7 +276,7 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const http = require('http');
 const server = http.createServer(app);
 const { initSocket } = require('./utils/socket');
