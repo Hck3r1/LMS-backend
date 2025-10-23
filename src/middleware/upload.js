@@ -157,10 +157,11 @@ const uploadMultiple = (fieldName, maxCount = 5) => {
           } else {
             // Cloudinary failed, use local storage fallback
             console.log('📁 Using local storage fallback for:', file.originalname);
+            const baseUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace('mic-lms', 'lms-backend-u90k') || 'https://lms-backend-u90k.onrender.com';
             return {
               filename: file.filename,
               originalName: file.originalname,
-              url: `/uploads/${file.filename}`,
+              url: `${baseUrl}/uploads/${file.filename}`,
               fileType: path.extname(file.originalname).slice(1),
               fileSize: file.size
             };
@@ -196,9 +197,17 @@ const uploadSingle = (fieldName) => {
       }
 
       try {
+        console.log('📤 Processing file upload:', {
+          originalName: req.file.originalname,
+          filename: req.file.filename,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        });
+
         const result = await uploadToCloudinary(req.file, 'lms/uploads');
         
         if (result.success) {
+          console.log('☁️ Cloudinary upload successful:', result.url);
           req.uploadedFile = {
             filename: req.file.filename,
             originalName: req.file.originalname,
@@ -210,10 +219,13 @@ const uploadSingle = (fieldName) => {
         } else {
           // Cloudinary failed, use local storage fallback
           console.log('📁 Using local storage fallback for:', req.file.originalname);
+          const baseUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace('mic-lms', 'lms-backend-u90k') || 'https://lms-backend-u90k.onrender.com';
+          const finalUrl = `${baseUrl}/uploads/${req.file.filename}`;
+          console.log('🔗 Generated local storage URL:', finalUrl);
           req.uploadedFile = {
             filename: req.file.filename,
             originalName: req.file.originalname,
-            url: `/uploads/${req.file.filename}`,
+            url: finalUrl,
             fileType: path.extname(req.file.originalname).slice(1),
             fileSize: req.file.size
           };

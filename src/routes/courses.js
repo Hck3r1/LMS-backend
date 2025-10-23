@@ -681,6 +681,13 @@ router.get('/:id/structure', [
  */
 router.post('/:id/thumbnail', protect, uploadThumbnail, async (req, res) => {
   try {
+    console.log('📸 Thumbnail upload request:', {
+      courseId: req.params.id,
+      hasFile: !!req.file,
+      hasUploadedFile: !!req.uploadedFile,
+      uploadedFile: req.uploadedFile
+    });
+
     const course = await Course.findById(req.params.id);
 
     if (!course) {
@@ -699,14 +706,17 @@ router.post('/:id/thumbnail', protect, uploadThumbnail, async (req, res) => {
     }
 
     if (!req.uploadedFile) {
+      console.error('❌ No uploadedFile found in request');
       return res.status(400).json({
         success: false,
         message: 'No file uploaded'
       });
     }
 
+    console.log('💾 Saving thumbnail URL to database:', req.uploadedFile.url);
     course.thumbnail = req.uploadedFile.url;
     await course.save();
+    console.log('✅ Course saved with thumbnail:', course.thumbnail);
 
     res.json({
       success: true,
@@ -758,6 +768,13 @@ router.post('/:id/thumbnail', protect, uploadThumbnail, async (req, res) => {
  */
 router.post('/:id/banner', protect, uploadBanner, async (req, res) => {
   try {
+    console.log('🖼️ Banner upload request:', {
+      courseId: req.params.id,
+      hasFile: !!req.file,
+      hasUploadedFile: !!req.uploadedFile,
+      uploadedFile: req.uploadedFile
+    });
+
     const course = await Course.findById(req.params.id);
 
     if (!course) {
@@ -776,14 +793,17 @@ router.post('/:id/banner', protect, uploadBanner, async (req, res) => {
     }
 
     if (!req.uploadedFile) {
+      console.error('❌ No uploadedFile found in request');
       return res.status(400).json({
         success: false,
         message: 'No file uploaded'
       });
     }
 
+    console.log('💾 Saving banner URL to database:', req.uploadedFile.url);
     course.banner = req.uploadedFile.url;
     await course.save();
+    console.log('✅ Course saved with banner:', course.banner);
 
     res.json({
       success: true,
