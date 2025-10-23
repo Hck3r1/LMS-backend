@@ -104,6 +104,14 @@ const userSchema = new mongoose.Schema({
   totalStudents: {
     type: Number,
     default: 0
+  },
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
   }
 }, {
   timestamps: true,
