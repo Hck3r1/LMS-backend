@@ -1,116 +1,95 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 
-// Smart Email Configuration with Fallback
-const emailConfigs = [
-  // Primary: Gmail SMTP (works locally)
-  {
-    name: 'Gmail SMTP',
-    host: 'smtp.gmail.com',
-    port: 587,
-    user: 'oysglms@gmail.com',
-    pass: 'zcjq xezv woag jiau',
-    from: 'oysglms@gmail.com',
-    secure: false,
-    tls: { rejectUnauthorized: false }
-  },
-  // Fallback: SendGrid (works on Render)
-  {
-    name: 'SendGrid',
-    host: 'smtp.sendgrid.net',
-    port: 587,
-    user: 'apikey',
-    pass: process.env.SENDGRID_API_KEY || 'SG.your-sendgrid-api-key-here',
-    from: 'noreply@mic-lms.com',
-    secure: false,
-    tls: { rejectUnauthorized: false }
-  },
-  // Fallback: Mailgun (works on Render)
-  {
-    name: 'Mailgun',
-    host: 'smtp.mailgun.org',
-    port: 587,
-    user: process.env.MAILGUN_SMTP_USER || 'postmaster@your-domain.mailgun.org',
-    pass: process.env.MAILGUN_SMTP_PASS || 'your-mailgun-smtp-password',
-    from: 'noreply@mic-lms.com',
-    secure: false,
-    tls: { rejectUnauthorized: false }
-  }
-];
+// Gmail SMTP Configuration (works locally and on Render)
+const gmailConfig = {
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  user: process.env.EMAIL_USER || 'oysglms@gmail.com',
+  pass: process.env.EMAIL_PASS || 'zcjq xezv woag jiau', // Your Gmail App Password
+  from: process.env.EMAIL_FROM || 'oysglms@gmail.com'
+};
 
-console.log('📧 Smart Email Configuration with Fallback:');
-console.log('📧 Primary: Gmail SMTP (local)');
-console.log('📧 Fallback 1: SendGrid (cloud)');
-console.log('📧 Fallback 2: Mailgun (cloud)');
+console.log('📧 Simple Gmail SMTP Configuration:');
+console.log('📧 Host:', gmailConfig.host);
+console.log('📧 Port:', gmailConfig.port);
+console.log('📧 User:', gmailConfig.user);
+console.log('📧 Password:', gmailConfig.pass ? '***SET***' : 'NOT SET');
+console.log('📧 From:', gmailConfig.from);
 
 let transporter;
 let currentEmailService = null;
 
-// Smart email service selection with fallback
-async function initializeEmailService() {
-  for (const config of emailConfigs) {
-    try {
-      console.log(`📧 Trying ${config.name}...`);
-      
-      const transporterConfig = {
-        host: config.host,
-        port: config.port,
-        secure: config.secure,
-        auth: { 
-          user: config.user, 
-          pass: config.pass 
-        },
-        tls: config.tls,
-        connectionTimeout: 30000, // 30 seconds
-        greetingTimeout: 10000,   // 10 seconds
-        socketTimeout: 30000,     // 30 seconds
-        pool: true,
-        maxConnections: 5,
-        maxMessages: 100,
-        rateDelta: 20000, // 20 seconds
-        rateLimit: 5 // max 5 emails per 20 seconds
-      };
-
-      const testTransporter = nodemailer.createTransport(transporterConfig);
-      
-      // Test the connection
-      await testTransporter.verify();
-      
-      transporter = testTransporter;
-      currentEmailService = config.name;
-      console.log(`✅ ${config.name} is ready to send messages`);
-      console.log(`📧 Using: ${config.name} (${config.host})`);
-      return true;
-      
-    } catch (error) {
-      console.log(`❌ ${config.name} failed: ${error.message}`);
-      continue;
-    }
+// Simple email setup with Gmail SMTP
+async function initializeEmail() {
+  try {
+    console.log('📧 Setting up Gmail SMTP...');
+    
+    // Gmail SMTP Configuration optimized for Render
+    const smtpConfig = {
+      host: gmailConfig.host,
+      port: gmailConfig.port,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: gmailConfig.user,
+        pass: gmailConfig.pass
+      },
+      tls: {
+        rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0' ? false : true
+      },
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000,    // 30 seconds
+      socketTimeout: 60000,      // 60 seconds
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 20000, // 20 seconds
+      rateLimit: 5 // max 5 emails per 20 seconds
+    };
+    
+    transporter = nodemailer.createTransport(smtpConfig);
+    
+    // Test the connection
+    await transporter.verify();
+    
+    currentEmailService = 'Gmail SMTP';
+    console.log('✅ Gmail SMTP is ready to send messages');
+    console.log('📧 Using: Gmail SMTP (works locally)');
+    return true;
+    
+  } catch (error) {
+    console.log('❌ Gmail SMTP failed:', error.message);
+    console.log('📧 This is expected on Render - Gmail SMTP is blocked');
+    
+    // For Render, we'll just disable email (no fallback needed)
+    console.log('📧 Email will be disabled on Render due to network restrictions');
+    transporter = null;
+    return false;
   }
-  
-  console.log('❌ All email services failed. Email will be disabled.');
-  return false;
 }
 
-// Initialize email service
-initializeEmailService();
+// Initialize email
+initializeEmail();
 
 async function sendEmail({ to, subject, html, text }) {
   if (!transporter) {
-    console.warn('Email transporter not configured; skipping email to', to);
+    console.warn('📧 Email disabled - Gmail SMTP not available (expected on Render)');
+    console.warn('📧 Skipping email to:', to);
     return { success: false, skipped: true };
   }
   
-  // Get the current email service config
-  const currentConfig = emailConfigs.find(config => config.name === currentEmailService);
-  const fromEmail = currentConfig ? currentConfig.from : 'noreply@mic-lms.com';
-  
-  const mail = { from: fromEmail, to, subject, html, text };
+  const mail = { 
+    from: gmailConfig.from, 
+    to, 
+    subject, 
+    html, 
+    text 
+  };
   
   try {
     console.log('📧 Attempting to send email to:', to);
     console.log('📧 Email subject:', subject);
-    console.log('📧 From address:', fromEmail);
+    console.log('📧 From address:', gmailConfig.from);
     console.log('📧 Using service:', currentEmailService);
     
     const result = await transporter.sendMail(mail);
@@ -122,16 +101,16 @@ async function sendEmail({ to, subject, html, text }) {
     return { success: true, messageId: result.messageId };
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);
-    console.error('📧 Email details:', { to, subject, from: fromEmail });
+    console.error('📧 Email details:', { to, subject, from: gmailConfig.from });
     console.error('📧 Full error:', error);
     
     // Handle specific error types
     if (error.code === 'ETIMEDOUT') {
-      console.error('⏰ Email timeout - SMTP server not responding');
+      console.error('⏰ Email timeout - Gmail SMTP not responding');
     } else if (error.code === 'ECONNREFUSED') {
-      console.error('🔌 Email connection refused - check SMTP host/port');
+      console.error('🔌 Email connection refused - check Gmail SMTP settings');
     } else if (error.code === 'EAUTH') {
-      console.error('🔐 Email authentication failed - check credentials');
+      console.error('🔐 Email authentication failed - check Gmail App Password');
     } else if (error.code === 'EMESSAGE') {
       console.error('📧 Message rejected by server - check email content/format');
     }
