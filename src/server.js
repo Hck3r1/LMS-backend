@@ -205,18 +205,13 @@ app.get('/api/test-email', async (req, res) => {
     if (result.skipped) {
       return res.json({
         success: false,
-        message: 'Email transporter not configured. Check your SMTP environment variables.',
+        message: 'Email transporter not configured. Using hardcoded Gmail SMTP.',
         config: {
-          EMAIL_HOST: process.env.EMAIL_HOST,
-          EMAIL_PORT: process.env.EMAIL_PORT,
-          EMAIL_USER: process.env.EMAIL_USER,
-          EMAIL_FROM: process.env.EMAIL_FROM,
-          hasPassword: !!process.env.EMAIL_PASS,
-          // Legacy SMTP variables
-          SMTP_HOST: process.env.SMTP_HOST,
-          SMTP_PORT: process.env.SMTP_PORT,
-          SMTP_USER: process.env.SMTP_USER,
-          hasLegacyPassword: !!process.env.SMTP_PASS
+          host: 'smtp.gmail.com',
+          port: 587,
+          user: 'oysglms@gmail.com',
+          from: 'oysglms@gmail.com',
+          hasPassword: true
         }
       });
     }
@@ -241,18 +236,14 @@ app.get('/api/test-email', async (req, res) => {
 app.get('/api/email-config', (req, res) => {
   res.json({
     success: true,
-    message: 'Email configuration debug info',
+    message: 'Email configuration debug info (Hardcoded Gmail SMTP)',
     config: {
-      EMAIL_HOST: process.env.EMAIL_HOST,
-      EMAIL_PORT: process.env.EMAIL_PORT,
-      EMAIL_USER: process.env.EMAIL_USER,
-      EMAIL_FROM: process.env.EMAIL_FROM,
-      hasPassword: !!process.env.EMAIL_PASS,
-      // Legacy SMTP variables
-      SMTP_HOST: process.env.SMTP_HOST,
-      SMTP_PORT: process.env.SMTP_PORT,
-      SMTP_USER: process.env.SMTP_USER,
-      hasLegacyPassword: !!process.env.SMTP_PASS,
+      // Hardcoded Gmail SMTP
+      host: 'smtp.gmail.com',
+      port: 587,
+      user: 'oysglms@gmail.com',
+      from: 'oysglms@gmail.com',
+      hasPassword: true,
       // Environment info
       NODE_ENV: process.env.NODE_ENV,
       FRONTEND_URL: process.env.FRONTEND_URL

@@ -1,39 +1,45 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 
-const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST;
-const smtpPort = parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || '587');
-const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER;
-const smtpPass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
-const fromEmail = process.env.EMAIL_FROM || 'no-reply@mic-lms.local';
+// Hardcoded Gmail SMTP Configuration
+const smtpHost = 'smtp.gmail.com';
+const smtpPort = 587;
+const smtpUser = 'oysglms@gmail.com';
+const smtpPass = 'zcjq xezv woag jiau'; // Your Gmail App Password
+const fromEmail = 'oysglms@gmail.com';
 
-// Debug email configuration
-console.log('📧 Email Configuration Debug:');
-console.log('📧 EMAIL_HOST:', smtpHost);
-console.log('📧 EMAIL_PORT:', smtpPort);
-console.log('📧 EMAIL_USER:', smtpUser ? '***SET***' : 'NOT SET');
-console.log('📧 EMAIL_PASS:', smtpPass ? '***SET***' : 'NOT SET');
-console.log('📧 EMAIL_FROM:', fromEmail);
+console.log('📧 Gmail SMTP Configuration (Hardcoded):');
+console.log('📧 Host:', smtpHost);
+console.log('📧 Port:', smtpPort);
+console.log('📧 User:', smtpUser);
+console.log('📧 Password:', smtpPass ? '***SET***' : 'NOT SET');
+console.log('📧 From:', fromEmail);
 
 let transporter;
 if (smtpHost && smtpUser && smtpPass) {
-  transporter = nodemailer.createTransport({
+  // Gmail SMTP Configuration
+  const config = {
     host: smtpHost,
     port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-    connectionTimeout: 30000, // 30 seconds
-    greetingTimeout: 10000,   // 10 seconds
-    socketTimeout: 30000,    // 30 seconds
+    secure: false, // true for 465, false for other ports
+    auth: { 
+      user: smtpUser, 
+      pass: smtpPass 
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 60000, // 60 seconds
+    greetingTimeout: 30000,   // 30 seconds
+    socketTimeout: 60000,     // 60 seconds
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
     rateDelta: 20000, // 20 seconds
-    rateLimit: 5, // max 5 emails per 20 seconds
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
+    rateLimit: 5 // max 5 emails per 20 seconds
+  };
+
+  transporter = nodemailer.createTransport(config);
   
   // Test the connection
   transporter.verify((error, success) => {
