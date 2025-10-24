@@ -7,6 +7,14 @@ const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER;
 const smtpPass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
 const fromEmail = process.env.EMAIL_FROM || 'no-reply@mic-lms.local';
 
+// Debug email configuration
+console.log('📧 Email Configuration Debug:');
+console.log('📧 EMAIL_HOST:', smtpHost);
+console.log('📧 EMAIL_PORT:', smtpPort);
+console.log('📧 EMAIL_USER:', smtpUser ? '***SET***' : 'NOT SET');
+console.log('📧 EMAIL_PASS:', smtpPass ? '***SET***' : 'NOT SET');
+console.log('📧 EMAIL_FROM:', fromEmail);
+
 let transporter;
 if (smtpHost && smtpUser && smtpPass) {
   transporter = nodemailer.createTransport({
@@ -14,14 +22,17 @@ if (smtpHost && smtpUser && smtpPass) {
     port: smtpPort,
     secure: smtpPort === 465,
     auth: { user: smtpUser, pass: smtpPass },
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 5000,    // 5 seconds
-    socketTimeout: 10000,    // 10 seconds
+    connectionTimeout: 30000, // 30 seconds
+    greetingTimeout: 10000,   // 10 seconds
+    socketTimeout: 30000,    // 30 seconds
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
     rateDelta: 20000, // 20 seconds
-    rateLimit: 5 // max 5 emails per 20 seconds
+    rateLimit: 5, // max 5 emails per 20 seconds
+    tls: {
+      rejectUnauthorized: false
+    }
   });
   
   // Test the connection

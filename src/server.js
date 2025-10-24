@@ -207,11 +207,16 @@ app.get('/api/test-email', async (req, res) => {
         success: false,
         message: 'Email transporter not configured. Check your SMTP environment variables.',
         config: {
+          EMAIL_HOST: process.env.EMAIL_HOST,
+          EMAIL_PORT: process.env.EMAIL_PORT,
+          EMAIL_USER: process.env.EMAIL_USER,
+          EMAIL_FROM: process.env.EMAIL_FROM,
+          hasPassword: !!process.env.EMAIL_PASS,
+          // Legacy SMTP variables
           SMTP_HOST: process.env.SMTP_HOST,
           SMTP_PORT: process.env.SMTP_PORT,
           SMTP_USER: process.env.SMTP_USER,
-          EMAIL_FROM: process.env.EMAIL_FROM,
-          hasPassword: !!process.env.SMTP_PASS
+          hasLegacyPassword: !!process.env.SMTP_PASS
         }
       });
     }
@@ -230,6 +235,29 @@ app.get('/api/test-email', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Email configuration debug endpoint
+app.get('/api/email-config', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Email configuration debug info',
+    config: {
+      EMAIL_HOST: process.env.EMAIL_HOST,
+      EMAIL_PORT: process.env.EMAIL_PORT,
+      EMAIL_USER: process.env.EMAIL_USER,
+      EMAIL_FROM: process.env.EMAIL_FROM,
+      hasPassword: !!process.env.EMAIL_PASS,
+      // Legacy SMTP variables
+      SMTP_HOST: process.env.SMTP_HOST,
+      SMTP_PORT: process.env.SMTP_PORT,
+      SMTP_USER: process.env.SMTP_USER,
+      hasLegacyPassword: !!process.env.SMTP_PASS,
+      // Environment info
+      NODE_ENV: process.env.NODE_ENV,
+      FRONTEND_URL: process.env.FRONTEND_URL
+    }
+  });
 });
 
 // CORS test endpoint
