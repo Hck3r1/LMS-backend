@@ -262,29 +262,30 @@ router.post('/', [protect, body('to').isMongoId(), body('content').isLength({ mi
       }
     });
 
+    // Email notifications disabled for performance
     // Send email notification to recipient
-    try {
-      const { sendEmail } = require('../utils/email');
-      const messageEmail = {
-        to: recipient.email,
-        subject: `New message from ${req.user.firstName || 'Someone'}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2c3e50;">💬 New Message</h2>
-            <p><strong>From:</strong> ${req.user.firstName || 'Someone'} ${req.user.lastName || ''}</p>
-            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="margin: 0; font-style: italic;">"${content}"</p>
-            </div>
-            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/messages/with/${req.user._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reply to Message</a></p>
-          </div>
-        `,
-        text: `New message from ${req.user.firstName || 'Someone'}:\n\n"${content}"\n\nReply at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/messages/with/${req.user._id}`
-      };
-      await sendEmail(messageEmail.to, messageEmail.subject, messageEmail.html);
-      console.log('📧 Email notification sent to:', recipient.email);
-    } catch (e) {
-      console.warn('Email message notification failed:', e.message);
-    }
+    // try {
+    //   const { sendEmail } = require('../utils/email');
+    //   const messageEmail = {
+    //     to: recipient.email,
+    //     subject: `New message from ${req.user.firstName || 'Someone'}`,
+    //     html: `
+    //       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    //         <h2 style="color: #2c3e50;">💬 New Message</h2>
+    //         <p><strong>From:</strong> ${req.user.firstName || 'Someone'} ${req.user.lastName || ''}</p>
+    //         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+    //           <p style="margin: 0; font-style: italic;">"${content}"</p>
+    //         </div>
+    //         <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/messages/with/${req.user._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reply to Message</a></p>
+    //       </div>
+    //     `,
+    //     text: `New message from ${req.user.firstName || 'Someone'}:\n\n"${content}"\n\nReply at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/messages/with/${req.user._id}`
+    //   };
+    //   await sendEmail(messageEmail.to, messageEmail.subject, messageEmail.html);
+    //   console.log('📧 Email notification sent to:', recipient.email);
+    // } catch (e) {
+    //   console.warn('Email message notification failed:', e.message);
+    // }
     
     console.log('✅ Message sent successfully from', req.user.email, 'to', recipient.email);
     res.status(201).json({ success: true, data: { message: msg } });
