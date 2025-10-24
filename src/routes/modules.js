@@ -175,7 +175,7 @@ router.post('/', [
             `,
             text: `New module added to ${course.title}\n\nModule: ${title}\nCourse: ${course.title}\n\nView at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}`
           };
-          await sendEmail(moduleEmail);
+          await sendEmail(moduleEmail.to, moduleEmail.subject, moduleEmail.html);
         }
         console.log('📧 Module creation emails sent to', students.length, 'students');
       } catch (e) {
@@ -431,7 +431,7 @@ router.put('/:id', [
               `,
               text: `Module published: ${updatedModule.title}\n\nCourse: ${course.title}\n\nThe module is now live and ready to access!\n\nStart learning at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}`
             };
-            await sendEmail(publishEmail);
+            await sendEmail(publishEmail.to, publishEmail.subject, publishEmail.html);
           }
           console.log('📧 Module publishing emails sent to', students.length, 'students');
         } catch (e) {

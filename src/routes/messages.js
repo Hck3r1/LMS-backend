@@ -280,7 +280,7 @@ router.post('/', [protect, body('to').isMongoId(), body('content').isLength({ mi
         `,
         text: `New message from ${req.user.firstName || 'Someone'}:\n\n"${content}"\n\nReply at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/messages/with/${req.user._id}`
       };
-      await sendEmail(messageEmail);
+      await sendEmail(messageEmail.to, messageEmail.subject, messageEmail.html);
       console.log('📧 Email notification sent to:', recipient.email);
     } catch (e) {
       console.warn('Email message notification failed:', e.message);

@@ -1,25 +1,9 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 
-// Smart email configuration: Gmail locally, Resend on Render
+// Prefer existing EMAIL_* (e.g., Gmail) setup if available; fallback to SMTP_* vars
 let transporter;
-let emailService = 'none';
-
-if (process.env.RESEND_API_KEY) {
-  // Use Resend on Render (works perfectly)
-  transporter = nodemailer.createTransport({
-    host: 'smtp.resend.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: 'resend',
-      pass: process.env.RESEND_API_KEY,
-    },
-  });
-  emailService = 'Resend';
-  console.log('✅ Resend service configured (works on Render)');
-} else if (process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
-  // Use Gmail locally
+if (process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
   transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -27,52 +11,22 @@ if (process.env.RESEND_API_KEY) {
       pass: process.env.EMAIL_PASSWORD,
     },
   });
-  emailService = 'Gmail';
-  console.log('✅ Gmail service configured (works locally)');
 } else {
-  transporter = null;
-  console.log('⚠️ No email service configured');
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: !!(process.env.SMTP_SECURE === "true"),
+    auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    } : undefined,
+  });
 }
 
-console.log('📧 Email Configuration:');
-console.log('📧 EMAIL_USERNAME:', process.env.EMAIL_USERNAME ? '***SET***' : 'NOT SET');
-console.log('📧 EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '***SET***' : 'NOT SET');
-console.log('📧 EMAIL_FROM:', process.env.EMAIL_FROM || 'NOT SET');
-
-async function sendEmail({ to, subject, html, text }) {
-  if (!to) {
-    console.error('❌ Missing recipient email');
-    return { success: false, error: 'Missing recipient email' };
-  }
-  
-  if (!transporter) {
-    console.warn('📧 No email service configured - logging email instead');
-    console.log('📧 Email would be sent to:', to);
-    console.log('📧 Subject:', subject);
-    console.log('📧 Content:', html || text);
-    return { success: false, skipped: true, message: 'Email service not configured' };
-  }
-  
-  const from = process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'no-reply@mic-lms.com';
-  
-  try {
-    console.log('📧 Attempting to send email to:', to);
-    console.log('📧 Email subject:', subject);
-    console.log('📧 From address:', from);
-    console.log('📧 Using service:', emailService);
-    
-    await transporter.sendMail({ from, to, subject, html, text });
-    
-    console.log('✅ Email sent successfully to:', to);
-    return { success: true };
-    
-  } catch (error) {
-    console.error('❌ Email sending failed:', error.message);
-    console.error('📧 Email details:', { to, subject, from });
-    console.error('📧 Full error:', error);
-    
-    return { success: false, error: error.message };
-  }
+async function sendEmail(to, subject, html) {
+  if (!to) throw new Error("Missing recipient email");
+  const from = process.env.EMAIL_FROM || process.env.FROM_EMAIL || "no-reply@mic-lms.com";
+  await transporter.sendMail({ from, to, subject, html });
 }
 
 function assignmentGradedTemplate({ studentName, courseTitle, assignmentTitle, grade }) {

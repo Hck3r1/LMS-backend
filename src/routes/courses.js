@@ -460,7 +460,7 @@ router.post('/', [
             `,
             text: `New course available: ${course.title}\n\nCategory: ${course.category}\nDifficulty: ${course.difficulty}\nDuration: ${course.duration} hours\n\n${course.description}\n\nEnroll at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}`
           };
-          await sendEmail(courseEmail);
+          await sendEmail(courseEmail.to, courseEmail.subject, courseEmail.html);
         }
         console.log('📧 Course announcement emails sent to', interestedStudents.length, 'students');
       } catch (e) {
@@ -942,7 +942,7 @@ router.post('/:id/enroll', [
             `,
             text: `New student enrolled in ${course.title}\n\nStudent: ${req.user.firstName || 'Student'} ${req.user.lastName || ''}\nEmail: ${req.user.email}\nEnrollment Date: ${new Date().toLocaleDateString()}\n\nView course dashboard at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/tutor/courses/${course._id}`
           };
-          await sendEmail(enrollmentEmail);
+          await sendEmail(enrollmentEmail.to, enrollmentEmail.subject, enrollmentEmail.html);
           console.log('📧 Enrollment email sent to instructor:', instructor.email);
         }
       } catch (e) {
@@ -963,10 +963,7 @@ router.post('/:id/enroll', [
         courseDescription: course.description
       });
 
-      await sendEmail({
-        to: req.user.email,
-        ...welcomeEmail
-      });
+      await sendEmail(req.user.email, welcomeEmail.subject, welcomeEmail.html);
       console.log('📧 Welcome email sent to student:', req.user.email);
     } catch (e) {
       console.warn('Email welcome notification failed:', e.message);

@@ -200,22 +200,8 @@ app.get('/api/test-email', async (req, res) => {
       text: `Email Test Successful!\n\nThis is a test email from your MIC LMS Backend.\nTimestamp: ${new Date().toISOString()}\nEnvironment: ${process.env.NODE_ENV || 'development'}\n\nIf you received this email, your SMTP configuration is working correctly!`
     };
 
-    const result = await sendEmail(testEmail);
+    await sendEmail(testEmail.to, testEmail.subject, testEmail.html);
     
-    if (result.skipped) {
-      return res.json({
-        success: false,
-        message: 'Email transporter not configured. Using hardcoded Gmail SMTP.',
-        config: {
-          host: 'smtp.gmail.com',
-          port: 587,
-          user: 'oysglms@gmail.com',
-          from: 'oysglms@gmail.com',
-          hasPassword: true
-        }
-      });
-    }
-
     res.json({
       success: true,
       message: 'Test email sent successfully!',

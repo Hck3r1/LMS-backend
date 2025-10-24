@@ -491,12 +491,12 @@ router.post('/test-email', async (req, res) => {
       text: 'Test Email\n\nThis is a test email from MIC LMS.'
     };
 
-    const result = await sendEmail(testEmail);
+    await sendEmail(testEmail.to, testEmail.subject, testEmail.html);
     
     res.json({
-      success: result.success,
-      message: result.success ? 'Test email sent successfully' : 'Test email failed',
-      details: result
+      success: true,
+      message: 'Test email sent successfully',
+      recipient: testEmail.to
     });
   } catch (error) {
     res.status(500).json({
@@ -554,17 +554,9 @@ router.post('/forgot-password', [
         expiresIn: '1 hour'
       });
 
-      const emailResult = await sendEmail({
-        to: user.email,
-        ...resetEmail
-      });
-      
-      if (emailResult.success) {
-        emailSent = true;
-        console.log('📧 Password reset email sent to:', user.email);
-      } else {
-        console.error('📧 Email sending failed:', emailResult.error);
-      }
+      await sendEmail(user.email, resetEmail.subject, resetEmail.html);
+      emailSent = true;
+      console.log('📧 Password reset email sent to:', user.email);
     } catch (emailError) {
       console.error('📧 Email sending failed:', emailError.message);
     }
@@ -688,7 +680,7 @@ router.post('/reset-password', [
         text: `Password Reset Successful - MIC LMS\n\nHello ${user.firstName || 'User'},\n\nYour password has been successfully reset for your MIC LMS account.\n\nPassword reset completed successfully!\n\nYou can now log in with your new password.\n\nLogin at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/login\n\nIf you didn't make this change, please contact support immediately.`
       };
 
-      await sendEmail(confirmationEmail);
+      await sendEmail(confirmationEmail.to, confirmationEmail.subject, confirmationEmail.html);
       console.log('📧 Password reset confirmation sent to:', user.email);
     } catch (emailError) {
       console.error('Confirmation email failed:', emailError);
