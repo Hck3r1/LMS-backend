@@ -13,7 +13,37 @@ if (smtpHost && smtpUser && smtpPass) {
     host: smtpHost,
     port: smtpPort,
     secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass }
+    auth: { user: smtpUser, pass: smtpPass },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 5000,    // 5 seconds
+    socketTimeout: 10000,    // 10 seconds
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    rateDelta: 20000, // 20 seconds
+    rateLimit: 5 // max 5 emails per 20 seconds
+  });
+  
+  // Test the connection
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Email configuration error:', error.message);
+      console.log('📧 Email will be disabled. Please check your SMTP settings.');
+      console.log('🔧 Current SMTP config:', {
+        host: smtpHost,
+        port: smtpPort,
+        user: smtpUser ? `${smtpUser.substring(0, 3)}***` : 'not set',
+        from: fromEmail
+      });
+    } else {
+      console.log('✅ Email server is ready to send messages');
+      console.log('📧 SMTP Configuration:', {
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        from: fromEmail
+      });
+    }
   });
 }
 
@@ -22,9 +52,39 @@ async function sendEmail({ to, subject, html, text }) {
     console.warn('Email transporter not configured; skipping email to', to);
     return { success: false, skipped: true };
   }
+  
   const mail = { from: fromEmail, to, subject, html, text };
-  await transporter.sendMail(mail);
-  return { success: true };
+  
+  try {
+    console.log('📧 Attempting to send email to:', to);
+    console.log('📧 Email subject:', subject);
+    console.log('📧 From address:', fromEmail);
+    
+    const result = await transporter.sendMail(mail);
+    console.log('✅ Email sent successfully:', result.messageId);
+    console.log('📧 Email response:', result.response);
+    console.log('📧 Email accepted by:', result.accepted);
+    console.log('📧 Email rejected by:', result.rejected);
+    
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('❌ Email sending failed:', error.message);
+    console.error('📧 Email details:', { to, subject, from: fromEmail });
+    console.error('📧 Full error:', error);
+    
+    // Handle specific error types
+    if (error.code === 'ETIMEDOUT') {
+      console.error('⏰ Email timeout - SMTP server not responding');
+    } else if (error.code === 'ECONNREFUSED') {
+      console.error('🔌 Email connection refused - check SMTP host/port');
+    } else if (error.code === 'EAUTH') {
+      console.error('🔐 Email authentication failed - check credentials');
+    } else if (error.code === 'EMESSAGE') {
+      console.error('📧 Message rejected by server - check email content/format');
+    }
+    
+    return { success: false, error: error.message };
+  }
 }
 
 function assignmentGradedTemplate({ studentName, courseTitle, assignmentTitle, grade }) {

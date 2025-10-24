@@ -480,6 +480,33 @@ router.get('/check-token', protect, async (req, res) => {
  *       404:
  *         description: User not found
  */
+// Test email endpoint (for debugging)
+router.post('/test-email', async (req, res) => {
+  try {
+    const { sendEmail } = require('../utils/email');
+    const testEmail = {
+      to: req.body.email || 'test@example.com',
+      subject: 'Test Email - MIC LMS',
+      html: '<h1>Test Email</h1><p>This is a test email from MIC LMS.</p>',
+      text: 'Test Email\n\nThis is a test email from MIC LMS.'
+    };
+
+    const result = await sendEmail(testEmail);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Test email sent successfully' : 'Test email failed',
+      details: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Test email error',
+      error: error.message
+    });
+  }
+});
+
 router.post('/forgot-password', [
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email')
 ], async (req, res) => {
@@ -517,6 +544,7 @@ router.post('/forgot-password', [
     await user.save();
 
     // Send password reset email
+    let emailSent = false;
     try {
       const { sendEmail } = require('../utils/email');
       const resetEmail = {
@@ -540,16 +568,24 @@ router.post('/forgot-password', [
         text: `Password Reset Request - MIC LMS\n\nHello ${user.firstName || 'User'},\n\nYou have requested to reset your password for your MIC LMS account.\n\nAccount: ${user.email}\nRequested: ${new Date().toLocaleString()}\n\nClick the link below to reset your password:\n${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}\n\nThis link will expire in 1 hour for security reasons.\n\nIf you didn't request this password reset, please ignore this email.`
       };
 
-      await sendEmail(resetEmail);
-      console.log('📧 Password reset email sent to:', user.email);
+      const emailResult = await sendEmail(resetEmail);
+      if (emailResult.success) {
+        emailSent = true;
+        console.log('📧 Password reset email sent to:', user.email);
+      } else {
+        console.error('📧 Email sending failed:', emailResult.error);
+      }
     } catch (emailError) {
-      console.error('Email sending failed:', emailError);
-      // Don't fail the request if email fails
+      console.error('📧 Email sending failed:', emailError.message);
     }
 
     res.json({
       success: true,
-      message: 'Password reset email sent successfully'
+      message: emailSent 
+        ? 'Password reset email sent successfully' 
+        : 'Password reset token generated. Please check your email or contact support if you don\'t receive it.',
+      emailSent,
+      resetToken: emailSent ? undefined : resetToken // Include token if email failed (for development/testing)
     });
   } catch (error) {
     console.error('Forgot password error:', error);
