@@ -954,30 +954,19 @@ router.post('/:id/enroll', [
 
     // Send welcome email to student
     try {
-      const { sendEmail } = require('../utils/email');
-      const welcomeEmail = {
+      const { sendEmail, courseEnrollmentTemplate } = require('../utils/email');
+      const instructor = await User.findById(course.instructor);
+      const welcomeEmail = courseEnrollmentTemplate({
+        studentName: req.user.firstName || 'Student',
+        courseTitle: course.title,
+        instructorName: instructor?.firstName || 'Instructor',
+        courseDescription: course.description
+      });
+
+      await sendEmail({
         to: req.user.email,
-        subject: `Welcome to ${course.title}!`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2c3e50;">🎉 Welcome to Your New Course!</h2>
-            <p>Hello ${req.user.firstName || 'Student'},</p>
-            <p>Congratulations! You have successfully enrolled in <strong>${course.title}</strong>.</p>
-            <div style="background-color: #e8f5e8; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #28a745;">
-              <h3 style="margin-top: 0; color: #155724;">Course Details</h3>
-              <p style="margin: 10px 0;"><strong>Course:</strong> ${course.title}</p>
-              <p style="margin: 10px 0;"><strong>Difficulty:</strong> ${course.difficulty}</p>
-              <p style="margin: 10px 0;"><strong>Duration:</strong> ${course.duration} hours</p>
-              <p style="margin: 10px 0 0 0;"><strong>Description:</strong> ${course.description}</p>
-            </div>
-            <p>You can now access all course materials, assignments, and track your progress.</p>
-            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Start Learning Now</a></p>
-            <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">Happy learning! 🚀</p>
-          </div>
-        `,
-        text: `Welcome to ${course.title}!\n\nHello ${req.user.firstName || 'Student'},\n\nCongratulations! You have successfully enrolled in ${course.title}.\n\nCourse Details:\n- Course: ${course.title}\n- Difficulty: ${course.difficulty}\n- Duration: ${course.duration} hours\n- Description: ${course.description}\n\nYou can now access all course materials, assignments, and track your progress.\n\nStart learning at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/courses/${course._id}\n\nHappy learning! 🚀`
-      };
-      await sendEmail(welcomeEmail);
+        ...welcomeEmail
+      });
       console.log('📧 Welcome email sent to student:', req.user.email);
     } catch (e) {
       console.warn('Email welcome notification failed:', e.message);

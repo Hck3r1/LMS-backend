@@ -546,29 +546,19 @@ router.post('/forgot-password', [
     // Send password reset email
     let emailSent = false;
     try {
-      const { sendEmail } = require('../utils/email');
-      const resetEmail = {
-        to: user.email,
-        subject: 'Password Reset Request - MIC LMS',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2c3e50;">🔐 Password Reset Request</h2>
-            <p>Hello ${user.firstName || 'User'},</p>
-            <p>You have requested to reset your password for your MIC LMS account.</p>
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
-              <p style="margin: 0;"><strong>Account:</strong> ${user.email}</p>
-              <p style="margin: 10px 0 0 0;"><strong>Requested:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-            <p>Click the button below to reset your password. This link will expire in 1 hour.</p>
-            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a></p>
-            <p style="color: #6c757d; font-size: 14px; margin-top: 30px;">If you didn't request this password reset, please ignore this email.</p>
-            <p style="color: #6c757d; font-size: 14px;">This link will expire in 1 hour for security reasons.</p>
-          </div>
-        `,
-        text: `Password Reset Request - MIC LMS\n\nHello ${user.firstName || 'User'},\n\nYou have requested to reset your password for your MIC LMS account.\n\nAccount: ${user.email}\nRequested: ${new Date().toLocaleString()}\n\nClick the link below to reset your password:\n${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}\n\nThis link will expire in 1 hour for security reasons.\n\nIf you didn't request this password reset, please ignore this email.`
-      };
+      const { sendEmail, passwordResetTemplate } = require('../utils/email');
+      const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+      const resetEmail = passwordResetTemplate({
+        userName: user.firstName || 'User',
+        resetLink: resetLink,
+        expiresIn: '1 hour'
+      });
 
-      const emailResult = await sendEmail(resetEmail);
+      const emailResult = await sendEmail({
+        to: user.email,
+        ...resetEmail
+      });
+      
       if (emailResult.success) {
         emailSent = true;
         console.log('📧 Password reset email sent to:', user.email);
