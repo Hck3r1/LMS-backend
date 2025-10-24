@@ -1,119 +1,57 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 
-// Gmail SMTP Configuration (works locally and on Render)
-const gmailConfig = {
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT || '587'),
-  user: process.env.EMAIL_USER || 'oysglms@gmail.com',
-  pass: process.env.EMAIL_PASS || 'zcjq xezv woag jiau', // Your Gmail App Password
-  from: process.env.EMAIL_FROM || 'oysglms@gmail.com'
-};
-
-console.log('📧 Simple Gmail SMTP Configuration:');
-console.log('📧 Host:', gmailConfig.host);
-console.log('📧 Port:', gmailConfig.port);
-console.log('📧 User:', gmailConfig.user);
-console.log('📧 Password:', gmailConfig.pass ? '***SET***' : 'NOT SET');
-console.log('📧 From:', gmailConfig.from);
-
+// Proven Gmail configuration that works on Render
 let transporter;
-let currentEmailService = null;
-
-// Simple email setup with Gmail SMTP
-async function initializeEmail() {
-  try {
-    console.log('📧 Setting up Gmail SMTP...');
-    
-    // Gmail SMTP Configuration optimized for Render
-    const smtpConfig = {
-      host: gmailConfig.host,
-      port: gmailConfig.port,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: gmailConfig.user,
-        pass: gmailConfig.pass
-      },
-      tls: {
-        rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0' ? false : true
-      },
-      connectionTimeout: 60000, // 60 seconds
-      greetingTimeout: 30000,    // 30 seconds
-      socketTimeout: 60000,      // 60 seconds
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      rateDelta: 20000, // 20 seconds
-      rateLimit: 5 // max 5 emails per 20 seconds
-    };
-    
-    transporter = nodemailer.createTransport(smtpConfig);
-    
-    // Test the connection
-    await transporter.verify();
-    
-    currentEmailService = 'Gmail SMTP';
-    console.log('✅ Gmail SMTP is ready to send messages');
-    console.log('📧 Using: Gmail SMTP (works locally)');
-    return true;
-    
-  } catch (error) {
-    console.log('❌ Gmail SMTP failed:', error.message);
-    console.log('📧 This is expected on Render - Gmail SMTP is blocked');
-    
-    // For Render, we'll just disable email (no fallback needed)
-    console.log('📧 Email will be disabled on Render due to network restrictions');
-    transporter = null;
-    return false;
-  }
+if (process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
+  transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USERNAME,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+  console.log('✅ Gmail service configured with EMAIL_USERNAME/EMAIL_PASSWORD');
+} else {
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: !!(process.env.SMTP_SECURE === "true"),
+    auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    } : undefined,
+  });
+  console.log('✅ SMTP configured with SMTP_* variables');
 }
 
-// Initialize email
-initializeEmail();
+console.log('📧 Email Configuration:');
+console.log('📧 EMAIL_USERNAME:', process.env.EMAIL_USERNAME ? '***SET***' : 'NOT SET');
+console.log('📧 EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '***SET***' : 'NOT SET');
+console.log('📧 EMAIL_FROM:', process.env.EMAIL_FROM || 'NOT SET');
 
 async function sendEmail({ to, subject, html, text }) {
-  if (!transporter) {
-    console.warn('📧 Email disabled - Gmail SMTP not available (expected on Render)');
-    console.warn('📧 Skipping email to:', to);
-    return { success: false, skipped: true };
+  if (!to) {
+    console.error('❌ Missing recipient email');
+    return { success: false, error: 'Missing recipient email' };
   }
   
-  const mail = { 
-    from: gmailConfig.from, 
-    to, 
-    subject, 
-    html, 
-    text 
-  };
+  const from = process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'no-reply@mic-lms.com';
   
   try {
     console.log('📧 Attempting to send email to:', to);
     console.log('📧 Email subject:', subject);
-    console.log('📧 From address:', gmailConfig.from);
-    console.log('📧 Using service:', currentEmailService);
+    console.log('📧 From address:', from);
     
-    const result = await transporter.sendMail(mail);
-    console.log('✅ Email sent successfully:', result.messageId);
-    console.log('📧 Email response:', result.response);
-    console.log('📧 Email accepted by:', result.accepted);
-    console.log('📧 Email rejected by:', result.rejected);
+    await transporter.sendMail({ from, to, subject, html, text });
     
-    return { success: true, messageId: result.messageId };
+    console.log('✅ Email sent successfully to:', to);
+    return { success: true };
+    
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);
-    console.error('📧 Email details:', { to, subject, from: gmailConfig.from });
+    console.error('📧 Email details:', { to, subject, from });
     console.error('📧 Full error:', error);
-    
-    // Handle specific error types
-    if (error.code === 'ETIMEDOUT') {
-      console.error('⏰ Email timeout - Gmail SMTP not responding');
-    } else if (error.code === 'ECONNREFUSED') {
-      console.error('🔌 Email connection refused - check Gmail SMTP settings');
-    } else if (error.code === 'EAUTH') {
-      console.error('🔐 Email authentication failed - check Gmail App Password');
-    } else if (error.code === 'EMESSAGE') {
-      console.error('📧 Message rejected by server - check email content/format');
-    }
     
     return { success: false, error: error.message };
   }

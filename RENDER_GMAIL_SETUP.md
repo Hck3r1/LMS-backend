@@ -1,23 +1,18 @@
-# 🚀 Render Gmail SMTP Setup Guide
+# 🚀 Render Gmail Setup Guide (Proven Method)
 
-## 🎯 **Goal: Make Gmail SMTP Work on Render**
+## 🎯 **Using Your Proven Working Configuration**
 
-Since Gmail SMTP works locally, it should work on Render too. Here's how to configure it properly.
+This uses the exact same pattern that works on your other project!
 
 ## 🔧 **Step 1: Add Environment Variables to Render**
 
 Go to your Render dashboard → Your service → Environment tab → Add these variables:
 
 ```bash
-# Gmail SMTP Configuration
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=oysglms@gmail.com
-EMAIL_PASS=zcjq xezv woag jiau
+# Gmail Configuration (proven to work on Render)
+EMAIL_USERNAME=oysglms@gmail.com
+EMAIL_PASSWORD=zcjq xezv woag jiau
 EMAIL_FROM=oysglms@gmail.com
-
-# Network settings for Render
-NODE_TLS_REJECT_UNAUTHORIZED=0
 ```
 
 ## 🔧 **Step 2: Render Service Configuration**
