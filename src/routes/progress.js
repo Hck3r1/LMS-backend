@@ -3,6 +3,7 @@ const router = express.Router();
 const Progress = require('../models/Progress');
 const Course = require('../models/Course');
 const Module = require('../models/Module');
+const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 
 // @desc    Get student's progress for a specific course
@@ -153,11 +154,38 @@ router.get('/student', protect, authorize('student', 'admin'), async (req, res) 
       }
     });
 
+    // Fetch time tracking data from Course enrollments
+    const courseIds = Object.keys(courseProgress);
+    const courses = await Course.find({ _id: { $in: courseIds } })
+      .select('_id enrolledStudents');
+    
+    // Add time spent from course enrollments
+    courses.forEach(course => {
+      const courseId = course._id.toString();
+      if (courseProgress[courseId]) {
+        const enrollment = course.enrolledStudents?.find(
+          e => e.student && e.student.toString() === studentId.toString()
+        );
+        
+        if (enrollment && enrollment.totalTimeSeconds) {
+          // Convert seconds to hours (rounded to 1 decimal place)
+          const hoursSpent = Math.round((enrollment.totalTimeSeconds / 3600) * 10) / 10;
+          courseProgress[courseId].totalTimeSpent = hoursSpent;
+        } else {
+          courseProgress[courseId].totalTimeSpent = 0;
+        }
+      }
+    });
+
     // Calculate progress percentages
     Object.values(courseProgress).forEach(course => {
       course.progressPercentage = course.totalModules > 0 
         ? Math.round((course.completedModules / course.totalModules) * 100) 
         : 0;
+      // Ensure totalTimeSpent is set
+      if (course.totalTimeSpent === undefined) {
+        course.totalTimeSpent = 0;
+      }
     });
 
     res.json({
