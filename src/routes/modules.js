@@ -256,6 +256,46 @@ router.post('/:id/content', [
   }
 });
 
+// @desc    Remove content from a module by URL (e.g., remove a video link)
+// @route   DELETE /api/modules/:id/content
+// @access  Private (Tutor only)
+router.delete('/:id/content', [
+  protect,
+  authorize('tutor', 'admin'),
+  body('url').isURL().withMessage('Valid URL is required to remove content')
+], async (req, res) => {
+  try {
+    const { url } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+
+    const module = await Module.findById(req.params.id).select('+content');
+    if (!module) {
+      return res.status(404).json({ success: false, message: 'Module not found' });
+    }
+
+    // Verify course ownership
+    const course = await Course.findById(module.courseId);
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to modify this module' });
+    }
+
+    const beforeLen = module.content.length;
+    module.content = module.content.filter(c => c.url !== url);
+    if (module.content.length === beforeLen) {
+      return res.status(404).json({ success: false, message: 'Content not found for the provided URL' });
+    }
+
+    await module.save();
+    return res.json({ success: true, message: 'Content removed successfully' });
+  } catch (error) {
+    console.error('Remove content error:', error);
+    return res.status(500).json({ success: false, message: 'Server error removing content' });
+  }
+});
+
 // @desc    Upload module content files
 // @route   POST /api/modules/:id/upload
 // @access  Private (Tutor only)
