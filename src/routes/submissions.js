@@ -264,7 +264,7 @@ router.get('/assignment/:assignmentId/student', protect, authorize('student', 'a
  *         description: List of submissions
  */
 // Get submissions for an assignment (tutors/admins only)
-router.get('/assignment/:assignmentId', protect, authorize('tutor', 'admin'), async (req, res) => {
+router.get('/assignment/:assignmentId', protect, authorize('student', 'tutor', 'admin'), async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.assignmentId)
       .populate('courseId', 'instructor');
@@ -273,6 +273,34 @@ router.get('/assignment/:assignmentId', protect, authorize('tutor', 'admin'), as
       return res.status(404).json({
         success: false,
         message: 'Assignment not found'
+      });
+    }
+
+    // Students: return only their own submissions (so frontend can safely call this endpoint)
+    if (req.user.role === 'student') {
+      const course = await Course.findById(assignment.courseId._id).select('enrolledStudents').lean();
+      const isEnrolled = (course?.enrolledStudents || []).some(
+        enrollment => enrollment.student.toString() === req.user._id.toString()
+      );
+
+      if (!isEnrolled) {
+        return res.status(403).json({
+          success: false,
+          message: 'You must be enrolled in this course to view your submissions'
+        });
+      }
+
+      const submissions = await Submission.find({
+        assignmentId: req.params.assignmentId,
+        studentId: req.user._id
+      })
+        .sort({ createdAt: -1 })
+        .populate('assignmentId', 'title maxPoints')
+        .populate('courseId', 'title');
+
+      return res.json({
+        success: true,
+        data: { submissions }
       });
     }
 
