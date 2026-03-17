@@ -92,8 +92,10 @@ router.get('/module/:moduleId', protect, async (req, res) => {
     }
 
     // Students: only published; Instructors/Admins: all
-    // All enrolled users (including students) can view all assignments for the module
-    const assignments = await Assignment.find({ moduleId: req.params.moduleId })
+    const query = { moduleId: req.params.moduleId };
+    if (req.user.role === 'student') query.isPublished = true;
+
+    const assignments = await Assignment.find(query)
       .sort({ dueDate: 1 })
       .populate('moduleId', 'title')
       .populate('courseId', 'title');
@@ -122,6 +124,14 @@ router.get('/:id', protect, async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Assignment not found'
+      });
+    }
+
+    // Students should not be able to access unpublished assignments
+    if (req.user.role === 'student' && !assignment.isPublished) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not available'
       });
     }
 
@@ -204,7 +214,9 @@ router.post('/', [
       instructions,
       type,
       dueDate,
-      maxPoints
+      maxPoints,
+      // If the course is already published, new assignments should be published immediately.
+      isPublished: course.isPublished === true
     });
 
     // Link assignment to module for quick population in module queries
