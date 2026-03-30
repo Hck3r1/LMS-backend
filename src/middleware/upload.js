@@ -36,35 +36,15 @@ const storage = multer.diskStorage({
 
 // File filter function
 const fileFilter = (req, file, cb) => {
-  // Define allowed file types
-  const allowedTypes = {
-    'image/jpeg': 'jpg',
-    'image/jpg': 'jpg',
-    'image/png': 'png',
-    'image/gif': 'gif',
-    'application/pdf': 'pdf',
-    'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-    'text/plain': 'txt',
-    'application/zip': 'zip',
-    'application/x-rar-compressed': 'rar',
-    'video/mp4': 'mp4',
-    'video/avi': 'avi',
-    'video/quicktime': 'mov'
-  };
-
-  if (allowedTypes[file.mimetype]) {
-    cb(null, true);
-  } else {
-    cb(new Error(`File type ${file.mimetype} is not allowed`), false);
-  }
+  // Allow all file types; enforce security/validation elsewhere.
+  cb(null, true);
 };
 
 // Create multer instance
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
+    fileSize: 10 * 1024 * 1024 // 10MB limit per file
   },
   fileFilter: fileFilter
 });
@@ -275,7 +255,7 @@ const handleUploadError = (err, req, res, next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'File too large. Maximum size is 50MB.'
+        message: 'File too large. Maximum size is 10MB per file.'
       });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {
