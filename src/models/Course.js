@@ -19,7 +19,7 @@ const courseSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Course category is required'],
-    enum: ['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design'],
+    enum: ['web-development', 'ui-ux', 'data-science', 'networking', 'video-editing', 'graphics-design'],
     index: true
   },
   instructor: {

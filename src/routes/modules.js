@@ -333,6 +333,7 @@ router.post('/:id/upload', protect, authorize('tutor', 'admin'), uploadModuleCon
         title: file.originalName,
         url: file.url,
         order: module.content.length + 1,
+        fileType: file.fileType,
         fileSize: file.fileSize
       };
     });
@@ -369,11 +370,11 @@ const getContentTypeFromFile = (fileType) => {
     'mp4': 'video',
     'avi': 'video',
     'mov': 'video',
-    'doc': 'pdf',
-    'docx': 'pdf',
+    'doc': 'link',
+    'docx': 'link',
     'txt': 'text'
   };
-  return typeMap[fileType.toLowerCase()] || 'pdf';
+  return typeMap[fileType.toLowerCase()] || 'link';
 };
 
 // @desc    Update module

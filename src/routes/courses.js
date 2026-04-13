@@ -77,7 +77,7 @@ router.get('/:id/students', protect, async (req, res) => {
  *         name: category
  *         schema:
  *           type: string
- *           enum: [web-development, ui-ux, data-science, video-editing, graphics-design]
+ *           enum: [web-development, ui-ux, data-science, networking, video-editing, graphics-design]
  *         description: Filter by course category
  *       - in: query
  *         name: difficulty
@@ -143,7 +143,7 @@ router.get('/:id/students', protect, async (req, res) => {
 router.get('/', [
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
   query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50'),
-  query('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
+  query('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'networking', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   query('difficulty').optional().isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   query('search').optional().isLength({ min: 1 }).withMessage('Search term cannot be empty'),
   query('sort').optional().isIn(['newest', 'oldest', 'rating', 'popular']).withMessage('Invalid sort option'),
@@ -335,7 +335,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
  *             properties:
  *               title: { type: string }
  *               description: { type: string }
- *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
+ *               category: { type: string, enum: [web-development, ui-ux, data-science, networking, video-editing, graphics-design] }
  *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
  *               duration: { type: integer, minimum: 1 }
  *               learningObjectives: { type: array, items: { type: string } }
@@ -353,7 +353,7 @@ router.post('/', [
   authorize('tutor', 'admin'),
   body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Title must be between 5 and 100 characters'),
   body('description').trim().isLength({ min: 10, max: 1000 }).withMessage('Description must be between 10 and 1000 characters'),
-  body('category').isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
+  body('category').isIn(['web-development', 'ui-ux', 'data-science', 'networking', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   body('difficulty').isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   body('duration').isInt({ min: 1 }).withMessage('Duration must be at least 1 hour'),
   // price removed for free LMS
@@ -501,7 +501,7 @@ router.post('/', [
  *             properties:
  *               title: { type: string }
  *               description: { type: string }
- *               category: { type: string, enum: [web-development, ui-ux, data-science, video-editing, graphics-design] }
+ *               category: { type: string, enum: [web-development, ui-ux, data-science, networking, video-editing, graphics-design] }
  *               difficulty: { type: string, enum: [beginner, intermediate, advanced] }
  *               duration: { type: integer, minimum: 1 }
  *               # price removed for free LMS
@@ -520,7 +520,7 @@ router.put('/:id', [
   authorize('tutor', 'admin'),
   body('title').optional().trim().isLength({ min: 5, max: 100 }).withMessage('Title must be between 5 and 100 characters'),
   body('description').optional().trim().isLength({ min: 10, max: 1000 }).withMessage('Description must be between 10 and 1000 characters'),
-  body('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
+  body('category').optional().isIn(['web-development', 'ui-ux', 'data-science', 'networking', 'video-editing', 'graphics-design']).withMessage('Invalid category'),
   body('difficulty').optional().isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
   body('duration').optional().isInt({ min: 1 }).withMessage('Duration must be at least 1 hour'),
   // price removed for free LMS
