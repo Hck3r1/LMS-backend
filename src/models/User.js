@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema({
   }],
   specialization: {
     type: String,
-    enum: ['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design', ''],
+    enum: ['web-development', 'ui-ux', 'data-science', 'networking', 'video-editing', 'graphics-design', ''],
     default: ''
   },
   enrollmentDate: {

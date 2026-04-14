@@ -81,7 +81,7 @@ router.post('/register', [
   body('role').optional({ checkFalsy: true }).isIn(['student', 'tutor']).withMessage('Role must be student or tutor'),
   body('specialization')
     .optional({ checkFalsy: true })
-    .isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design'])
+    .isIn(['web-development', 'ui-ux', 'data-science', 'networking', 'video-editing', 'graphics-design'])
     .withMessage('Invalid specialization')
 ], authController.register);
 
@@ -191,7 +191,7 @@ router.put('/profile', [
   body('lastName').optional().trim().isLength({ min: 2 }).withMessage('Last name must be at least 2 characters'),
   body('bio').optional().isLength({ max: 500 }).withMessage('Bio cannot exceed 500 characters'),
   body('skills').optional().isArray().withMessage('Skills must be an array'),
-  body('specialization').optional().isIn(['web-development', 'ui-ux', 'data-science', 'video-editing', 'graphics-design']).withMessage('Invalid specialization')
+  body('specialization').optional().isIn(['web-development', 'ui-ux', 'data-science', 'networking', 'video-editing', 'graphics-design']).withMessage('Invalid specialization')
 ], authController.updateProfile);
 
 /**
