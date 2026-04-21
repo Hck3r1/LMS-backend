@@ -509,7 +509,7 @@ router.get('/tutor', protect, authorize('tutor', 'admin'), async (req, res) => {
       query.studentId = { $in: studentIds };
     }
 
-    const [total, submissions, modules, assignments] = await Promise.all([
+    const [total, submissions, modules, assignments, studentAssignmentStats] = await Promise.all([
       Submission.countDocuments(query),
       Submission.find(query)
         .sort({ createdAt: -1 })
@@ -530,15 +530,56 @@ router.get('/tutor', protect, authorize('tutor', 'admin'), async (req, res) => {
       })
         .select('_id title moduleId dueDate')
         .sort({ dueDate: 1, createdAt: 1 })
-        .lean()
+        .lean(),
+      Submission.aggregate([
+        {
+          $match: {
+            courseId: { $in: accessibleCourseIds },
+            status: { $ne: 'draft' }
+          }
+        },
+        {
+          $group: {
+            _id: '$studentId',
+            assignmentIds: { $addToSet: '$assignmentId' },
+            totalSubmissions: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            totalSubmissions: 1,
+            assignmentsCompleted: { $size: '$assignmentIds' }
+          }
+        }
+      ])
     ]);
+
+    const studentStatsById = studentAssignmentStats.reduce((acc, stat) => {
+      acc[String(stat._id)] = {
+        assignmentsCompleted: stat.assignmentsCompleted || 0,
+        totalSubmissions: stat.totalSubmissions || 0
+      };
+      return acc;
+    }, {});
+
+    const submissionsWithStats = submissions.map((submission) => {
+      const sid = submission?.studentId?._id ? String(submission.studentId._id) : '';
+      return {
+        ...submission,
+        studentProgress: studentStatsById[sid] || {
+          assignmentsCompleted: 0,
+          totalSubmissions: 0
+        }
+      };
+    });
 
     const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
 
     return res.json({
       success: true,
       data: {
-        submissions,
+        submissions: submissionsWithStats,
         pagination: {
           page,
           limit,
