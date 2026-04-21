@@ -3,6 +3,8 @@ const { body, validationResult } = require('express-validator');
 const Submission = require('../models/Submission');
 const Assignment = require('../models/Assignment');
 const Course = require('../models/Course');
+const Module = require('../models/Module');
+const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 const { uploadAssignmentFiles } = require('../middleware/upload');
 const Notification = require('../models/Notification');
@@ -408,6 +410,155 @@ router.get('/recent', protect, async (req, res) => {
   } catch (error) {
     console.error('Get recent submissions error:', error?.message, error?.stack);
     return res.status(500).json({ success: false, message: 'Server error fetching recent submissions' });
+  }
+});
+
+// @desc    Get tutor submissions with search/filter/pagination
+// @route   GET /api/submissions/tutor
+// @access  Private (Tutor/Admin)
+router.get('/tutor', protect, authorize('tutor', 'admin'), async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || '20', 10)));
+    const skip = (page - 1) * limit;
+
+    const {
+      search = '',
+      moduleId = '',
+      assignmentId = '',
+      courseId = '',
+      status = ''
+    } = req.query;
+
+    // Scope submissions to tutor-owned courses (admins can optionally scope by courseId)
+    let accessibleCourseIds = [];
+    if (req.user.role === 'admin') {
+      if (courseId) {
+        accessibleCourseIds = [courseId];
+      } else {
+        const courses = await Course.find({}).select('_id').lean();
+        accessibleCourseIds = courses.map((c) => c._id);
+      }
+    } else {
+      const tutorCoursesQuery = { instructor: req.user._id };
+      if (courseId) tutorCoursesQuery._id = courseId;
+      const tutorCourses = await Course.find(tutorCoursesQuery).select('_id').lean();
+      accessibleCourseIds = tutorCourses.map((c) => c._id);
+    }
+
+    if (!accessibleCourseIds.length) {
+      return res.json({
+        success: true,
+        data: {
+          submissions: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false
+          },
+          filterOptions: {
+            modules: [],
+            assignments: []
+          }
+        }
+      });
+    }
+
+    const query = {
+      courseId: { $in: accessibleCourseIds }
+    };
+
+    if (moduleId) query.moduleId = moduleId;
+    if (assignmentId) query.assignmentId = assignmentId;
+    if (status) query.status = status;
+
+    if (search && String(search).trim()) {
+      const searchRegex = new RegExp(String(search).trim(), 'i');
+      const matchingStudents = await User.find({
+        $or: [
+          { firstName: searchRegex },
+          { lastName: searchRegex },
+          { email: searchRegex }
+        ]
+      }).select('_id').lean();
+
+      const studentIds = matchingStudents.map((student) => student._id);
+      if (!studentIds.length) {
+        return res.json({
+          success: true,
+          data: {
+            submissions: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+              hasPrev: false
+            },
+            filterOptions: {
+              modules: [],
+              assignments: []
+            }
+          }
+        });
+      }
+      query.studentId = { $in: studentIds };
+    }
+
+    const [total, submissions, modules, assignments] = await Promise.all([
+      Submission.countDocuments(query),
+      Submission.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('studentId', 'firstName lastName email avatar')
+        .populate('assignmentId', 'title maxPoints moduleId')
+        .populate('courseId', 'title')
+        .populate('moduleId', 'title order')
+        .lean(),
+      Module.find({ courseId: { $in: accessibleCourseIds } })
+        .select('_id title order')
+        .sort({ order: 1, createdAt: 1 })
+        .lean(),
+      Assignment.find({
+        courseId: { $in: accessibleCourseIds },
+        ...(moduleId ? { moduleId } : {})
+      })
+        .select('_id title moduleId dueDate')
+        .sort({ dueDate: 1, createdAt: 1 })
+        .lean()
+    ]);
+
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+
+    return res.json({
+      success: true,
+      data: {
+        submissions,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        },
+        filterOptions: {
+          modules,
+          assignments
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get tutor submissions error:', error?.message, error?.stack);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error fetching tutor submissions'
+    });
   }
 });
 
